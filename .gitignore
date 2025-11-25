@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+bun.lock
+
+# Environment
+.env
+.env.local
+
+# Data/State
+data/
+
+# SDK (large, external)
+ePOS_SDK_JavaScript_v2.27.0g/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
