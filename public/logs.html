@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Activity Log - Donotick Printer</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    .log-controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    
+    .log-entry {
+      padding: 12px 14px;
+      background: var(--bg-inset);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius);
+      margin-bottom: 8px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.8125rem;
+      transition: border-color 0.15s;
+    }
+    
+    .log-entry:hover {
+      border-color: var(--border);
+    }
+    
+    .log-entry.error {
+      border-left: 3px solid var(--red);
+    }
+    
+    .log-entry.warn {
+      border-left: 3px solid var(--amber);
+    }
+    
+    .log-entry.info {
+      border-left: 3px solid var(--green);
+    }
+    
+    .log-timestamp {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+    
+    .log-level {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-left: 8px;
+    }
+    
+    .log-level.error {
+      background: var(--red-glow);
+      color: var(--red);
+    }
+    
+    .log-level.warn {
+      background: var(--amber-glow);
+      color: var(--amber);
+    }
+    
+    .log-level.info {
+      background: var(--green-glow);
+      color: var(--green);
+    }
+    
+    .log-message {
+      margin-top: 6px;
+      color: var(--text);
+    }
+    
+    .log-extra {
+      margin-top: 4px;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+    
+    .empty-logs {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--text-muted);
+    }
+    
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.875rem;
+      transition: color 0.15s;
+    }
+    
+    .back-link:hover {
+      color: var(--amber);
+    }
+    
+    .log-count {
+      color: var(--text-muted);
+      font-size: 0.8125rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard">
+    <header>
+      <div class="logo">📋</div>
+      <div>
+        <h1>Activity Log</h1>
+        <p class="sub">System events and print history</p>
+      </div>
+      <a href="/" class="back-link" style="margin-left: auto;">
+        ← Back to Dashboard
+      </a>
+    </header>
+
+    <div class="card">
+      <div class="card-header">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <h3>Recent Activity</h3>
+      </div>
+      <div class="card-body">
+        <div class="log-controls">
+          <button id="btnRefresh" class="btn-primary">Refresh</button>
+          <button id="btnClear" class="btn-outline">Clear All</button>
+          <span class="log-count" id="logCount"></span>
+        </div>
+        <div id="logList"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const logList = document.getElementById('logList');
+    const logCount = document.getElementById('logCount');
+
+    async function loadLogs() {
+      try {
+        const res = await fetch('/api/logs?limit=100');
+        const data = await res.json();
+        renderLogs(data.logs || []);
+      } catch (err) {
+        logList.innerHTML = '<div class="empty-logs">Failed to load logs</div>';
+      }
+    }
+
+    function renderLogs(logs) {
+      if (!logs.length) {
+        logList.innerHTML = '<div class="empty-logs">No activity recorded yet</div>';
+        logCount.textContent = '';
+        return;
+      }
+
+      logCount.textContent = `${logs.length} entries`;
+      
+      logList.innerHTML = logs.map(log => {
+        const date = new Date(log.timestamp);
+        const timeStr = date.toLocaleString('de-DE');
+        const extra = log.extra ? `<div class="log-extra">${log.extra}</div>` : '';
+        
+        return `
+          <div class="log-entry ${log.level}">
+            <span class="log-timestamp">${timeStr}</span>
+            <span class="log-level ${log.level}">${log.level}</span>
+            <div class="log-message">${escapeHtml(log.message)}</div>
+            ${extra}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    async function clearLogs() {
+      if (!confirm('Clear all logs?')) return;
+      try {
+        await fetch('/api/logs/clear', { method: 'POST' });
+        loadLogs();
+      } catch (err) {
+        alert('Failed to clear logs');
+      }
+    }
+
+    document.getElementById('btnRefresh').onclick = loadLogs;
+    document.getElementById('btnClear').onclick = clearLogs;
+
+    // Load on page load
+    loadLogs();
+
+    // Auto-refresh every 30 seconds
+    setInterval(loadLogs, 30000);
+  </script>
+</body>
+</html>
+

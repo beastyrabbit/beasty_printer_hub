@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trash Calendar - Donotick Printer</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    .trash-item {
+      padding: 16px;
+      background: var(--bg-inset);
+      border-radius: var(--radius);
+      margin-bottom: 12px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 16px;
+      align-items: center;
+      border-left: 4px solid var(--green);
+    }
+    
+    .trash-item.gelb { border-left-color: #facc15; }
+    .trash-item.gruen, .trash-item.papier { border-left-color: #22c55e; }
+    .trash-item.schwarz, .trash-item.rest { border-left-color: #6b7280; }
+    .trash-item.blau, .trash-item.glas { border-left-color: #3b82f6; }
+    
+    .trash-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      background: rgba(255,255,255,0.05);
+    }
+    
+    .trash-info h4 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    
+    .trash-dates {
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      font-family: 'DM Mono', monospace;
+    }
+    
+    .trash-status {
+      text-align: right;
+    }
+    
+    .trash-status .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    
+    .badge.pending {
+      background: var(--amber-glow);
+      color: var(--amber);
+    }
+    
+    .badge.printed {
+      background: var(--green-glow);
+      color: var(--green);
+    }
+    
+    .trash-countdown {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    
+    .sync-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: var(--bg-inset);
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+    }
+    
+    .sync-status .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard">
+    <header>
+      <div class="logo">🗑️</div>
+      <div>
+        <h1>Trash Calendar</h1>
+        <p class="sub">Upcoming waste collection reminders</p>
+      </div>
+      <a href="/" class="back-link">
+        ← Back to Dashboard
+      </a>
+    </header>
+
+    <div class="grid">
+      <div class="col-8">
+        <div class="card">
+          <div class="card-header">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            <h3>Upcoming Collections</h3>
+          </div>
+          <div class="card-body">
+            <div class="btn-group" style="margin-bottom: 20px;">
+              <button id="btnRefresh" class="btn-primary">Refresh</button>
+              <button id="btnSync">Sync to Donotick</button>
+            </div>
+            
+            <div id="syncStatus" class="sync-status" style="display: none;">
+              <span class="dot"></span>
+              <span id="syncText">Synced</span>
+            </div>
+            
+            <div id="trashList"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-4">
+        <div class="card">
+          <div class="card-header">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 16v-4M12 8h.01" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <h3>About</h3>
+          </div>
+          <div class="card-body">
+            <div class="help-section">
+              <h4>How it works</h4>
+              <p>The system fetches your waste collection schedule from the configured iCal feed and creates reminder tasks in Donotick one day before pickup.</p>
+            </div>
+            <div class="help-section">
+              <h4>Automatic Sync</h4>
+              <p>Trash calendar syncs automatically every hour. Use the sync button to manually trigger a sync.</p>
+            </div>
+            <div class="help-section">
+              <h4>Color Legend</h4>
+              <ul class="color-legend">
+                <li><span class="legend-dot" style="background: #facc15;"></span> Yellow bin (Gelbe Tonne)</li>
+                <li><span class="legend-dot" style="background: #22c55e;"></span> Paper (Papiertonne)</li>
+                <li><span class="legend-dot" style="background: #6b7280;"></span> Residual waste (Restmüll)</li>
+                <li><span class="legend-dot" style="background: #3b82f6;"></span> Glass (Glas)</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <a href="/settings.html" class="nav-link">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          <span>Printer Settings</span>
+          <span class="arrow">→</span>
+        </a>
+
+        <a href="/logs.html" class="nav-link">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Activity Log</span>
+          <span class="arrow">→</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const trashListEl = document.getElementById('trashList');
+    const syncStatus = document.getElementById('syncStatus');
+    const syncText = document.getElementById('syncText');
+
+    async function fetchJson(url, opts = {}) {
+      const res = await fetch(url, opts);
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+
+    function getTrashIcon(type) {
+      const lower = type.toLowerCase();
+      if (lower.includes('gelb')) return '🟡';
+      if (lower.includes('papier')) return '📦';
+      if (lower.includes('rest')) return '⬛';
+      if (lower.includes('glas')) return '🔵';
+      return '🗑️';
+    }
+
+    function getTrashClass(type) {
+      const lower = type.toLowerCase();
+      if (lower.includes('gelb')) return 'gelb';
+      if (lower.includes('papier') || lower.includes('grün')) return 'papier';
+      if (lower.includes('rest') || lower.includes('schwarz')) return 'rest';
+      if (lower.includes('glas') || lower.includes('blau')) return 'glas';
+      return '';
+    }
+
+    function daysUntil(dateStr) {
+      const target = new Date(dateStr);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      target.setHours(0, 0, 0, 0);
+      const diff = Math.ceil((target - today) / (1000 * 60 * 60 * 24));
+      if (diff === 0) return 'Today';
+      if (diff === 1) return 'Tomorrow';
+      if (diff < 0) return 'Past';
+      return `In ${diff} days`;
+    }
+
+    async function loadTrash() {
+      try {
+        const data = await fetchJson('/api/trash/preview');
+        renderTrash(data.upcoming || [], data.printed || {});
+      } catch (err) {
+        trashListEl.innerHTML = `<div class="empty-state">Error loading trash calendar: ${err.message}</div>`;
+      }
+    }
+
+    function renderTrash(items, printed) {
+      if (!items.length) {
+        trashListEl.innerHTML = '<div class="empty-state">No upcoming collections</div>';
+        return;
+      }
+
+      trashListEl.innerHTML = items.map(item => {
+        const isPrinted = printed[item.uid];
+        const reminderDate = new Date(item.reminderDate).toLocaleDateString('de-DE');
+        const pickupDate = new Date(item.pickupDate).toLocaleDateString('de-DE');
+        const countdown = daysUntil(item.reminderDate);
+        
+        return `
+          <div class="trash-item ${getTrashClass(item.type)}">
+            <div class="trash-icon">${getTrashIcon(item.type)}</div>
+            <div class="trash-info">
+              <h4>${item.type}</h4>
+              <div class="trash-dates">
+                Reminder: ${reminderDate} · Pickup: ${pickupDate}
+              </div>
+            </div>
+            <div class="trash-status">
+              <span class="badge ${isPrinted ? 'printed' : 'pending'}">
+                ${isPrinted ? '✓ Printed' : '○ Pending'}
+              </span>
+              <div class="trash-countdown">${countdown}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function syncToDonotick() {
+      syncStatus.style.display = 'flex';
+      syncText.textContent = 'Syncing...';
+      
+      try {
+        await fetchJson('/api/trash/sync', { method: 'POST' });
+        syncText.textContent = 'Sync complete!';
+        setTimeout(() => {
+          syncStatus.style.display = 'none';
+        }, 3000);
+        loadTrash();
+      } catch (err) {
+        syncText.textContent = `Sync failed: ${err.message}`;
+      }
+    }
+
+    document.getElementById('btnRefresh').onclick = loadTrash;
+    document.getElementById('btnSync').onclick = syncToDonotick;
+
+    loadTrash();
+  </script>
+</body>
+</html>
+

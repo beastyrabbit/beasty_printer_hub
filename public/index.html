@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Donotick Printer Dashboard</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="dashboard">
+    <header>
+      <div class="logo">🖨️</div>
+      <div>
+        <h1>Donotick Printer</h1>
+        <p class="sub">Fetch, preview &amp; print tasks</p>
+      </div>
+      <div class="status-indicator">
+        <span class="status-dot"></span>
+        <span id="scheduleLine">Loading...</span>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- Tasks (Main Content) -->
+      <div class="col-8">
+        <div class="card" id="tasks">
+          <div class="card-header">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <h3>Tasks</h3>
+          </div>
+          <div class="card-body">
+            <div class="btn-group" style="margin-bottom: 20px;">
+              <button id="btnLoadAll" class="btn-primary">Load Tasks</button>
+              <button id="btnPrintServer">Print Daily Summary</button>
+              <button id="btnPrintWeekly">Print Weekly Summary</button>
+            </div>
+            
+            <div class="task-section">
+              <div class="section-title">
+                <span>📅</span> Today
+              </div>
+              <ul id="taskList" class="task-list"></ul>
+            </div>
+
+            <div class="preview" id="previewTicket">
+              <h4>Ticket Preview</h4>
+              <div id="previewTicketBody">No task selected.</div>
+            </div>
+
+            <div class="task-section" style="margin-top: 24px;">
+              <div class="section-title">
+                <span>📆</span> This Week
+              </div>
+              <p id="weekWindow"></p>
+              <ul id="taskListWeek" class="task-list"></ul>
+            </div>
+
+            <div class="preview" id="previewSummary">
+              <h4>Summary Preview</h4>
+              <div id="previewSummaryBody">No data loaded.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sidebar Navigation -->
+      <div class="col-4">
+        <!-- Quick Stats -->
+        <div class="card">
+          <div class="card-header">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <h3>Quick Stats</h3>
+          </div>
+          <div class="card-body">
+            <div class="info-row">
+              <span class="info-label">Today's Tasks</span>
+              <span class="info-value" id="todayCount">--</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">This Week</span>
+              <span class="info-value" id="weekCount">--</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Trash Reminders</span>
+              <span class="info-value" id="trashCount">--</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Navigation Links -->
+        <a href="/trash.html" class="nav-link">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Trash Calendar</span>
+          <span class="arrow">→</span>
+        </a>
+
+        <a href="/settings.html" class="nav-link">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Printer Settings</span>
+          <span class="arrow">→</span>
+        </a>
+
+        <a href="/logs.html" class="nav-link">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Activity Log</span>
+          <span class="arrow">→</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script src="/lib/epos-2.27.0.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
