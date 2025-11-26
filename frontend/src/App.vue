@@ -1,6 +1,19 @@
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import { RouterLink, RouterView } from 'vue-router'
 import { Printer, ShoppingCart, Settings, FileText, ExternalLink } from 'lucide-vue-next'
+
+const donotickUrl = ref('')
+
+onMounted(async () => {
+  try {
+    const res = await fetch('/api/config')
+    const data = await res.json()
+    donotickUrl.value = data.config?.donotickBaseUrl || ''
+  } catch {
+    // Ignore - link just won't show
+  }
+})
 </script>
 
 <template>
@@ -23,7 +36,8 @@ import { Printer, ShoppingCart, Settings, FileText, ExternalLink } from 'lucide-
           <!-- Navigation -->
           <nav class="flex items-center gap-1">
             <a
-              href="https://donotick.beastyrabbit.com/"
+              v-if="donotickUrl"
+              :href="donotickUrl"
               target="_blank"
               class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >
