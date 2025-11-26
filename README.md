@@ -1,8 +1,6 @@
-# Printer Hub
+# Beasty Printer Hub 🖨️
 
 A personal productivity dashboard that connects to [Donotick](https://donotick.com) task manager, Google Calendar, trash collection schedules, and an ESC/POS thermal printer. Built with Node.js backend and Vue 3 frontend.
-
-![Dashboard Screenshot](docs/screenshot.png)
 
 ## Features
 
@@ -14,7 +12,52 @@ A personal productivity dashboard that connects to [Donotick](https://donotick.c
 - **Automatic Scheduling**: Daily morning prints and weekly summaries
 - **Modern UI**: Dark theme Vue 3 dashboard with Tailwind CSS
 
-## Quick Start
+## Quick Start with Docker (Recommended)
+
+```bash
+# Clone the repository
+git clone https://github.com/beastyrabbit/beasty_printer_hub.git
+cd beasty_printer_hub
+
+# Create data directory and copy example config
+mkdir -p data
+cp data/db.example.json data/db.json
+
+# Build and start
+docker compose up -d
+
+# View logs
+docker compose logs -f
+```
+
+Open http://localhost:3000 in your browser and configure everything in **Settings**.
+
+## Docker Compose
+
+The `docker-compose.yml` provides a production-ready setup:
+
+```yaml
+services:
+  beasty-printer-hub:
+    build: .
+    container_name: beasty-printer-hub
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data  # Persistent config & state
+    environment:
+      - TZ=Europe/Berlin
+```
+
+### Volume Mount
+
+The `data/` directory is mounted as a volume and contains:
+- `db.json` - All configuration, shopping lists, logs, and cached data
+
+This file persists across container restarts and updates.
+
+## Manual Installation
 
 ### Prerequisites
 
@@ -26,21 +69,19 @@ A personal productivity dashboard that connects to [Donotick](https://donotick.c
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/printer-hub.git
-cd printer-hub
+git clone https://github.com/beastyrabbit/beasty_printer_hub.git
+cd beasty_printer_hub
 
 # Install dependencies
 bun install
 cd frontend && bun install && cd ..
 
 # Build frontend
-cd frontend && bun run build && cd ..
+bun run build
 
 # Start the server
 bun run start
 ```
-
-Open http://localhost:3000 in your browser and configure everything in **Settings**.
 
 ## Configuration
 
@@ -63,15 +104,15 @@ Optionally, you can set initial values via environment variables (`.env` file) -
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a project and enable **Google Calendar API**
 3. Create OAuth 2.0 credentials (Web application)
-4. Add redirect URI: `http://localhost:3000/api/google/callback`
+4. Add redirect URI: `http://your-server:3000/api/google/callback`
 5. Enter Client ID and Secret in Settings
 6. Click "Connect with Google"
 
 ## Architecture
 
 ```
-printer-hub/
-├── src/                    # Backend (Node.js)
+beasty_printer_hub/
+├── src/                    # Backend (Node.js/Bun)
 │   ├── server.js          # HTTP server & API routes
 │   ├── printer.js         # ESC/POS thermal printing
 │   ├── donotick.js        # Donotick API client
@@ -86,8 +127,10 @@ printer-hub/
 │   │   ├── components/    # UI components (shadcn-vue)
 │   │   └── router/        # Vue Router
 │   └── dist/              # Built frontend (served by backend)
-└── data/                  # Runtime data (gitignored)
-    └── db.json            # Database file
+├── data/                  # Runtime data (gitignored, mounted in Docker)
+│   └── db.json            # Database file
+├── Dockerfile             # Multi-stage Docker build
+└── docker-compose.yml     # Production deployment
 ```
 
 ## API Endpoints
@@ -143,10 +186,13 @@ bun run dev
 cd frontend && bun run dev
 
 # Build frontend for production
-cd frontend && bun run build
+bun run build
 
-# Type check frontend
-cd frontend && bun run type-check
+# Docker commands
+bun run docker:build   # Build Docker image
+bun run docker:up      # Start container
+bun run docker:down    # Stop container
+bun run docker:logs    # View logs
 ```
 
 ## Tech Stack

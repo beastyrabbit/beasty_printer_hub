@@ -1,0 +1,50 @@
+{
+  "config": {
+    "donotickBaseUrl": "",
+    "donotickWebUrl": "",
+    "donotickUsername": "",
+    "donotickPassword": "",
+    "donotickToken": "",
+    "printerIp": "",
+    "printerPort": 9100,
+    "dailyPrintTime": "08:00",
+    "weeklyPrintTime": "08:00",
+    "weeklyPrintDay": 1,
+    "trashIcalUrl": "",
+    "trashEnable": false,
+    "googleClientId": "",
+    "googleClientSecret": "",
+    "googleRefreshToken": "",
+    "googleCalendarId": "",
+    "serverPort": 3000,
+    "logLevel": "info",
+    "wifiSsid": "",
+    "wifiPassword": "",
+    "wifiType": "WPA",
+    "wifiHidden": false,
+    "ollamaEnabled": false,
+    "ollamaUrl": "http://localhost:11434",
+    "ollamaModel": "llama3.2",
+    "aiDailySummary": false,
+    "aiWeeklySummary": false
+  },
+  "daily": {
+    "date": "",
+    "tasks": []
+  },
+  "trash": {
+    "printed": {},
+    "created": {},
+    "cache": {
+      "fetchedAt": 0,
+      "events": []
+    }
+  },
+  "shopping": {
+    "items": [],
+    "list": [],
+    "collections": []
+  },
+  "logs": []
+}
+

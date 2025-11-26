@@ -1,0 +1,46 @@
+# Dependencies (will be installed fresh in container)
+node_modules/
+frontend/node_modules/
+
+# Lock files (use install without lockfile)
+bun.lock
+frontend/bun.lock
+
+# Git
+.git
+.gitignore
+
+# Environment files
+.env
+.env.*
+
+# Data (mounted as volume)
+data/
+
+# SDK (not needed for runtime)
+ePOS_SDK_JavaScript_v2.27.0g/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+frontend/dist/
+
+# Documentation
+*.md
+*.pdf
+
+# Images used for development
+img/
+
+# Tools and scripts
+tools/
+scripts/
+

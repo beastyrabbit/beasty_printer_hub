@@ -1,12 +1,17 @@
 {
-  "name": "donotick-printer",
-  "version": "0.1.0",
-  "description": "Minimal Node service to fetch Donotick tasks and print via Epson ESC/POS/ePOS SDK.",
+  "name": "beasty-printer-hub",
+  "version": "0.2.0",
+  "description": "Smart home printer hub - prints tasks, shopping lists, WiFi QR codes, and more via Epson thermal printers.",
   "main": "src/server.js",
   "type": "commonjs",
   "scripts": {
     "start": "bun run src/server.js",
     "dev": "bun --watch src/server.js",
+    "build": "cd frontend && bun run build",
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
     "lint": "bunx eslint \"src/**/*.js\" \"public/**/*.js\" \"scripts/**/*.js\""
   },
   "devDependencies": {

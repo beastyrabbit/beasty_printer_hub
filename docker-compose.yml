@@ -1,0 +1,24 @@
+services:
+  beasty-printer-hub:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: beasty-printer-hub
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # Persist database with config and state
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production
+      - TZ=Europe/Berlin
+    # Optional: network mode host for direct printer access on local network
+    # network_mode: host
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
