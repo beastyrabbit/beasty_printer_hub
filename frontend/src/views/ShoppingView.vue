@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Plus, Printer, Copy, RotateCcw, FolderPlus, X, Folder } from 'lucide-vue-next'
+import { Plus, Printer, Copy, RotateCcw, FolderPlus, X, Folder, Pencil, Trash2 } from 'lucide-vue-next'
 
 const router = useRouter()
 
@@ -38,6 +38,7 @@ interface LagerEntry {
   unit?: string
   usageCount: number
   alwaysOnList?: boolean
+  alwaysQuantity?: number
   itemCount?: number
 }
 
@@ -58,6 +59,33 @@ const collections = ref<Collection[]>([])
 const searchQuery = ref('')
 const loading = ref(false)
 
+// Edit modal state
+const showEditModal = ref(false)
+const editingItem = ref<ShoppingItem | null>(null)
+const editForm = ref({
+  name: '',
+  unit: 'st',
+  alwaysOnList: false,
+  alwaysQuantity: 1
+})
+
+const unitOptions = [
+  { value: 'st', label: 'Stück' },
+  { value: 'dose', label: 'Dose' },
+  { value: 'glas', label: 'Glas' },
+  { value: 'pack', label: 'Packung' },
+  { value: 'flasche', label: 'Flasche' },
+  { value: 'beutel', label: 'Beutel' },
+  { value: 'becher', label: 'Becher' },
+  { value: 'kasten', label: 'Kasten' },
+  { value: 'karton', label: 'Karton' },
+  { value: 'bund', label: 'Bund' },
+  { value: 'g', label: 'Gramm' },
+  { value: 'kg', label: 'Kilogramm' },
+  { value: 'ml', label: 'Milliliter' },
+  { value: 'l', label: 'Liter' }
+]
+
 // Combine items and collections into a single sorted list
 const lagerEntries = computed<LagerEntry[]>(() => {
   const entries: LagerEntry[] = []
@@ -70,7 +98,8 @@ const lagerEntries = computed<LagerEntry[]>(() => {
       name: item.name,
       unit: item.unit,
       usageCount: item.usageCount,
-      alwaysOnList: item.alwaysOnList
+      alwaysOnList: item.alwaysOnList,
+      alwaysQuantity: item.alwaysQuantity
     })
   }
   
@@ -232,6 +261,54 @@ function handleSearch(e: KeyboardEvent) {
   }
 }
 
+function openEditModal(entry: LagerEntry) {
+  if (entry.type !== 'item') return
+  const item = items.value.find(i => i.id === entry.id)
+  if (!item) return
+  
+  editingItem.value = item
+  editForm.value = {
+    name: item.name,
+    unit: item.unit || 'st',
+    alwaysOnList: item.alwaysOnList || false,
+    alwaysQuantity: item.alwaysQuantity || 1
+  }
+  showEditModal.value = true
+}
+
+async function saveItem() {
+  if (!editingItem.value) return
+  
+  try {
+    await fetch(`/api/shopping/items/${editingItem.value.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(editForm.value)
+    })
+    showEditModal.value = false
+    editingItem.value = null
+    await loadData()
+  } catch (err) {
+    console.error('Failed to save:', err)
+  }
+}
+
+async function deleteItem() {
+  if (!editingItem.value) return
+  if (!confirm('Item wirklich löschen?')) return
+  
+  try {
+    await fetch(`/api/shopping/items/${editingItem.value.id}`, {
+      method: 'DELETE'
+    })
+    showEditModal.value = false
+    editingItem.value = null
+    await loadData()
+  } catch (err) {
+    console.error('Failed to delete:', err)
+  }
+}
+
 async function printList() {
   try {
     await fetch('/api/shopping/print', { method: 'POST' })
@@ -341,6 +418,16 @@ onMounted(loadData)
               <div class="flex items-center gap-2">
                 <span v-if="entry.type === 'item'" class="text-sm text-muted-foreground">{{ getUnitShort(entry.unit || 'st') }}</span>
                 <span v-else class="text-sm text-muted-foreground">{{ entry.itemCount }} Items</span>
+                <Button 
+                  v-if="entry.type === 'item'" 
+                  variant="ghost" 
+                  size="icon" 
+                  class="h-8 w-8" 
+                  @click.stop="openEditModal(entry)"
+                  title="Bearbeiten"
+                >
+                  <Pencil class="w-4 h-4" />
+                </Button>
                 <Button variant="ghost" size="icon" class="h-8 w-8" @click.stop="addToList(entry)">
                   <Plus class="w-4 h-4" />
                 </Button>
@@ -411,6 +498,53 @@ onMounted(loadData)
           </div>
         </CardContent>
       </Card>
+    </div>
+
+    <!-- Edit Modal -->
+    <div v-if="showEditModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showEditModal = false">
+      <div class="bg-card border border-border rounded-lg p-6 w-full max-w-md shadow-xl">
+        <h2 class="text-xl font-bold mb-4">Item bearbeiten</h2>
+        
+        <div class="space-y-4">
+          <div class="space-y-2">
+            <label class="text-sm font-medium">Name</label>
+            <Input v-model="editForm.name" />
+          </div>
+          
+          <div class="space-y-2">
+            <label class="text-sm font-medium">Einheit</label>
+            <select 
+              v-model="editForm.unit"
+              class="w-full h-9 rounded-md border border-input bg-background text-foreground px-3 py-1 text-sm"
+            >
+              <option v-for="opt in unitOptions" :key="opt.value" :value="opt.value">
+                {{ opt.label }}
+              </option>
+            </select>
+          </div>
+          
+          <div class="flex items-center gap-3">
+            <input type="checkbox" v-model="editForm.alwaysOnList" id="alwaysOnList" class="rounded" />
+            <label for="alwaysOnList" class="text-sm">Immer auf der Liste</label>
+          </div>
+          
+          <div v-if="editForm.alwaysOnList" class="space-y-2">
+            <label class="text-sm font-medium">Standard-Menge</label>
+            <Input v-model.number="editForm.alwaysQuantity" type="number" min="1" />
+          </div>
+        </div>
+        
+        <div class="flex justify-between mt-6">
+          <Button variant="destructive" @click="deleteItem">
+            <Trash2 class="w-4 h-4 mr-2" />
+            Löschen
+          </Button>
+          <div class="flex gap-2">
+            <Button variant="outline" @click="showEditModal = false">Abbrechen</Button>
+            <Button @click="saveItem">Speichern</Button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
