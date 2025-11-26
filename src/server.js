@@ -522,7 +522,9 @@ async function handleApi(req, res) {
       return true;
     }
     
-    const redirectUri = `http://${req.headers.host}/api/google/callback`;
+    // Use X-Forwarded-Proto header if behind reverse proxy, otherwise detect from connection
+    const proto = req.headers['x-forwarded-proto'] || 'http';
+    const redirectUri = `${proto}://${req.headers.host}/api/google/callback`;
     const authUrl = googleCalendar.getAuthUrl(redirectUri);
     sendJson(res, 200, { authUrl });
     return true;
@@ -547,7 +549,8 @@ async function handleApi(req, res) {
     }
     
     try {
-      const redirectUri = `http://${req.headers.host}/api/google/callback`;
+      const proto = req.headers['x-forwarded-proto'] || 'http';
+      const redirectUri = `${proto}://${req.headers.host}/api/google/callback`;
       const tokens = await googleCalendar.exchangeCodeForTokens(code, redirectUri);
       
       // Save refresh token
