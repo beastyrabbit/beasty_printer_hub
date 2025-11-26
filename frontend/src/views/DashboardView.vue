@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckSquare, Calendar, Printer, Wifi } from 'lucide-vue-next'
+import { CheckSquare, Calendar, Printer, Wifi, Trash2, CalendarDays, Link2, Bot } from 'lucide-vue-next'
 
 interface Task {
   id: string | number
@@ -12,14 +12,29 @@ interface Task {
   labels?: string[]
 }
 
+interface ConnectionStatus {
+  name: string
+  icon: any
+  connected: boolean
+  detail?: string
+  loading: boolean
+}
+
 const tasks = ref<Task[]>([])
 const weekTasks = ref<Task[]>([])
 const loading = ref(false)
 const todayCount = ref(0)
 const weekCount = ref(0)
-const printerStatus = ref<{ reachable: boolean; ip?: string } | null>(null)
 
-let printerCheckInterval: number | null = null
+// Connection statuses
+const connections = ref<ConnectionStatus[]>([
+  { name: 'Drucker', icon: Printer, connected: false, loading: true },
+  { name: 'Abfall-Kalender', icon: Trash2, connected: false, loading: true },
+  { name: 'Familien-Kalender', icon: CalendarDays, connected: false, loading: true },
+  { name: 'Ollama KI', icon: Bot, connected: false, loading: true },
+])
+
+let statusCheckInterval: number | null = null
 
 async function loadTasks() {
   loading.value = true
@@ -46,12 +61,87 @@ async function loadWeekTasks() {
   }
 }
 
-async function checkPrinter() {
+async function checkAllConnections() {
+  // Check printer
   try {
     const res = await fetch('/api/printer/status')
-    printerStatus.value = await res.json()
-  } catch (err) {
-    printerStatus.value = { reachable: false }
+    const data = await res.json()
+    const printer = connections.value.find(c => c.name === 'Drucker')
+    if (printer) {
+      printer.connected = data.reachable
+      printer.detail = data.ip || undefined
+      printer.loading = false
+    }
+  } catch {
+    const printer = connections.value.find(c => c.name === 'Drucker')
+    if (printer) { printer.connected = false; printer.loading = false }
+  }
+
+  // Check Trash calendar
+  try {
+    const res = await fetch('/api/trash/preview')
+    const data = await res.json()
+    const trash = connections.value.find(c => c.name === 'Abfall-Kalender')
+    if (trash) {
+      const eventCount = data.events?.length || 0
+      trash.connected = eventCount > 0
+      trash.detail = eventCount > 0 ? `${eventCount} Termine` : 'Keine Termine'
+      trash.loading = false
+    }
+  } catch {
+    const trash = connections.value.find(c => c.name === 'Abfall-Kalender')
+    if (trash) { trash.connected = false; trash.detail = 'Fehler'; trash.loading = false }
+  }
+
+  // Check Family calendar
+  try {
+    const res = await fetch('/api/calendar/week')
+    const data = await res.json()
+    const family = connections.value.find(c => c.name === 'Familien-Kalender')
+    if (family) {
+      const eventCount = data.events?.length || 0
+      if (eventCount > 0) {
+        family.connected = true
+        family.detail = `${eventCount} Termine diese Woche`
+      } else {
+        // Check if calendar is configured
+        const configRes = await fetch('/api/config')
+        const configData = await configRes.json()
+        if (configData.config?.googleCalendarUrl) {
+          family.connected = true
+          family.detail = 'Keine Termine diese Woche'
+        } else {
+          family.connected = false
+          family.detail = 'Nicht konfiguriert'
+        }
+      }
+      family.loading = false
+    }
+  } catch {
+    const family = connections.value.find(c => c.name === 'Familien-Kalender')
+    if (family) { family.connected = false; family.detail = 'Fehler'; family.loading = false }
+  }
+
+  // Check Ollama AI
+  try {
+    const configRes = await fetch('/api/config')
+    const configData = await configRes.json()
+    const ai = connections.value.find(c => c.name === 'Ollama KI')
+    if (ai) {
+      if (configData.config?.ollamaEnabled) {
+        const res = await fetch('/api/ai/status')
+        const data = await res.json()
+        ai.connected = data.available
+        ai.detail = data.available ? (data.models?.[0] || 'Verbunden') : 'Nicht erreichbar'
+      } else {
+        ai.connected = false
+        ai.detail = 'Deaktiviert'
+      }
+      ai.loading = false
+    }
+  } catch {
+    const ai = connections.value.find(c => c.name === 'Ollama KI')
+    if (ai) { ai.connected = false; ai.detail = 'Fehler'; ai.loading = false }
   }
 }
 
@@ -89,17 +179,23 @@ async function printWifiQr() {
   }
 }
 
+function refreshAll() {
+  loadTasks()
+  loadWeekTasks()
+  checkAllConnections()
+}
+
 onMounted(() => {
   loadTasks()
   loadWeekTasks()
-  checkPrinter()
-  // Auto-check printer every 5 seconds
-  printerCheckInterval = window.setInterval(checkPrinter, 5000)
+  checkAllConnections()
+  // Auto-check status every 30 seconds
+  statusCheckInterval = window.setInterval(checkAllConnections, 30000)
 })
 
 onUnmounted(() => {
-  if (printerCheckInterval) {
-    clearInterval(printerCheckInterval)
+  if (statusCheckInterval) {
+    clearInterval(statusCheckInterval)
   }
 })
 </script>
@@ -117,7 +213,7 @@ onUnmounted(() => {
           <Wifi class="w-4 h-4 mr-2" />
           WLAN QR
         </Button>
-        <Button @click="loadTasks(); loadWeekTasks()" :disabled="loading">
+        <Button @click="refreshAll" :disabled="loading">
           {{ loading ? 'Lädt...' : 'Aktualisieren' }}
         </Button>
       </div>
@@ -151,26 +247,39 @@ onUnmounted(() => {
         </CardContent>
       </Card>
 
+      <!-- Connection Status Card -->
       <Card>
         <CardHeader class="pb-2">
           <CardTitle class="text-sm font-medium text-muted-foreground flex items-center gap-2">
-            <Printer class="w-4 h-4" />
-            Drucker
+            <Link2 class="w-4 h-4" />
+            Verbindungen
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div class="flex items-center gap-2">
-            <div 
-              class="w-3 h-3 rounded-full animate-pulse"
-              :class="printerStatus?.reachable ? 'bg-green-500' : 'bg-red-500'"
-            />
-            <span class="text-sm">
-              {{ printerStatus?.reachable ? 'Verbunden' : 'Nicht erreichbar' }}
-            </span>
+        <CardContent class="space-y-2">
+          <div
+            v-for="conn in connections"
+            :key="conn.name"
+            class="flex items-center justify-between text-sm"
+          >
+            <div class="flex items-center gap-2">
+              <component :is="conn.icon" class="w-3.5 h-3.5 text-muted-foreground" />
+              <span>{{ conn.name }}</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span v-if="conn.detail" class="text-xs text-muted-foreground hidden sm:inline">
+                {{ conn.detail }}
+              </span>
+              <div 
+                v-if="conn.loading"
+                class="w-2.5 h-2.5 rounded-full bg-muted-foreground/50 animate-pulse"
+              />
+              <div 
+                v-else
+                class="w-2.5 h-2.5 rounded-full"
+                :class="conn.connected ? 'bg-green-500' : 'bg-red-500'"
+              />
+            </div>
           </div>
-          <p v-if="printerStatus?.ip" class="text-xs text-muted-foreground mt-1">
-            {{ printerStatus.ip }}
-          </p>
         </CardContent>
       </Card>
     </div>
