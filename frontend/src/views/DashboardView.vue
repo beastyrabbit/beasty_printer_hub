@@ -73,10 +73,8 @@ async function printWeeklySummary() {
 
 async function printTask(task: Task) {
   try {
-    await fetch('/api/todos/print', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ taskId: task.id })
+    await fetch(`/api/todos/${task.id}/print`, {
+      method: 'POST'
     })
   } catch (err) {
     console.error('Print failed:', err)

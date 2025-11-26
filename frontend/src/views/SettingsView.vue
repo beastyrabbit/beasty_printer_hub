@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Save, CheckCircle, Wifi, Printer } from 'lucide-vue-next'
+import { Save, CheckCircle, Wifi, Printer, Signal } from 'lucide-vue-next'
 
 const config = ref({
   donotickBaseUrl: '',
@@ -25,6 +25,8 @@ const passwordSet = ref(false)
 const wifiPasswordSet = ref(false)
 
 // Printer test states
+const testingConnection = ref(false)
+const connectionStatus = ref<boolean | null>(null)
 const testingPrint = ref(false)
 
 async function loadConfig() {
@@ -77,6 +79,20 @@ async function saveConfig() {
     console.error('Failed to save:', err)
   } finally {
     saving.value = false
+  }
+}
+
+async function testConnection() {
+  testingConnection.value = true
+  connectionStatus.value = null
+  try {
+    const res = await fetch('/api/printer/status')
+    const data = await res.json()
+    connectionStatus.value = data.reachable
+  } catch (err) {
+    connectionStatus.value = false
+  } finally {
+    testingConnection.value = false
   }
 }
 
@@ -146,10 +162,24 @@ onMounted(loadConfig)
           </div>
         </div>
 
-        <Button variant="outline" @click="testPrint" :disabled="testingPrint">
-          <Printer class="w-4 h-4 mr-2" />
-          {{ testingPrint ? 'Druckt...' : 'Testseite drucken' }}
-        </Button>
+        <div class="flex gap-2">
+          <Button variant="outline" @click="testConnection" :disabled="testingConnection">
+            <Signal class="w-4 h-4 mr-2" />
+            {{ testingConnection ? 'Teste...' : 'Verbindung testen' }}
+          </Button>
+          <Button variant="outline" @click="testPrint" :disabled="testingPrint">
+            <Printer class="w-4 h-4 mr-2" />
+            {{ testingPrint ? 'Druckt...' : 'Testseite drucken' }}
+          </Button>
+        </div>
+        
+        <div v-if="connectionStatus !== null" class="flex items-center gap-2 text-sm">
+          <div 
+            class="w-3 h-3 rounded-full"
+            :class="connectionStatus ? 'bg-green-500' : 'bg-red-500'"
+          />
+          {{ connectionStatus ? 'Drucker erreichbar' : 'Drucker nicht erreichbar' }}
+        </div>
       </CardContent>
     </Card>
 
@@ -182,11 +212,11 @@ onMounted(loadConfig)
             <label class="text-sm font-medium">Verschlüsselung</label>
             <select 
               v-model="config.wifiType"
-              class="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+              class="w-full h-9 rounded-md border border-input bg-background text-foreground px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             >
-              <option value="WPA">WPA/WPA2/WPA3</option>
-              <option value="WEP">WEP</option>
-              <option value="nopass">Offen</option>
+              <option value="WPA" class="bg-background text-foreground">WPA/WPA2/WPA3</option>
+              <option value="WEP" class="bg-background text-foreground">WEP</option>
+              <option value="nopass" class="bg-background text-foreground">Offen</option>
             </select>
           </div>
         </div>

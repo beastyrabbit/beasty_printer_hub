@@ -332,13 +332,72 @@ function searchShoppingItems(query) {
 function getShoppingList() {
   const db = loadDb();
   const items = db.shopping.items || [];
+  const collections = db.shopping.collections || [];
   return (db.shopping.list || []).map(entry => {
-    const item = items.find(i => i.id === entry.itemId);
-    return {
-      ...entry,
-      item: item || { id: entry.itemId, name: '(deleted)', unit: 'st' }
-    };
+    if (entry.collectionId) {
+      const col = collections.find(c => c.id === entry.collectionId);
+      return {
+        ...entry,
+        collection: col || { id: entry.collectionId, name: '(deleted)', items: [] }
+      };
+    } else {
+      const item = items.find(i => i.id === entry.itemId);
+      return {
+        ...entry,
+        item: item || { id: entry.itemId, name: '(deleted)', unit: 'st' }
+      };
+    }
   });
+}
+
+// Get shopping list with collections resolved to their items (for printing/copying)
+function getShoppingListResolved() {
+  const db = loadDb();
+  const items = db.shopping.items || [];
+  const collections = db.shopping.collections || [];
+  const result = [];
+  
+  for (const entry of (db.shopping.list || [])) {
+    if (entry.collectionId) {
+      // Resolve collection to its items
+      const col = collections.find(c => c.id === entry.collectionId);
+      if (col && col.items) {
+        for (const colItem of col.items) {
+          const item = items.find(i => i.id === colItem.itemId);
+          if (item) {
+            // Check if item already exists in result
+            const existing = result.find(r => r.itemId === colItem.itemId);
+            if (existing) {
+              existing.quantity += (colItem.quantity || 1) * (entry.quantity || 1);
+            } else {
+              result.push({
+                itemId: colItem.itemId,
+                quantity: (colItem.quantity || 1) * (entry.quantity || 1),
+                item: item
+              });
+            }
+          }
+        }
+      }
+    } else if (entry.itemId) {
+      const item = items.find(i => i.id === entry.itemId);
+      if (item) {
+        // Check if item already exists in result
+        const existing = result.find(r => r.itemId === entry.itemId);
+        if (existing) {
+          existing.quantity += entry.quantity || 1;
+        } else {
+          result.push({
+            itemId: entry.itemId,
+            quantity: entry.quantity || 1,
+            item: item
+          });
+        }
+      }
+    }
+  }
+  
+  return result;
 }
 
 // Add item or collection to shopping list (or increase quantity if exists)
@@ -634,6 +693,7 @@ module.exports = {
   
   // Shopping - List
   getShoppingList,
+  getShoppingListResolved,
   addToShoppingList,
   updateShoppingListQuantity,
   removeFromShoppingList,

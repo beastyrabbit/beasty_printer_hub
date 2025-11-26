@@ -640,7 +640,8 @@ async function handleApi(req, res) {
   if (pathname === '/api/shopping/print' && req.method === 'POST') {
     try {
       const body = await readBody(req);
-      const list = db.getShoppingList();
+      // Use resolved list that expands collections to their items
+      const list = db.getShoppingListResolved();
       if (!list.length) {
         sendJson(res, 200, { status: 'empty' });
         return true;
