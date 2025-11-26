@@ -111,8 +111,9 @@ async function createItem(name: string) {
 
 function handleSearch(e: KeyboardEvent) {
   if (e.key === 'Enter' && searchQuery.value.trim()) {
-    if (filteredItems.value.length === 1) {
-      addToList(filteredItems.value[0].id)
+    const filtered = filteredItems.value
+    if (filtered.length === 1 && filtered[0]) {
+      addToList(filtered[0].id)
       searchQuery.value = ''
     } else {
       const exact = items.value.find(i => i.name.toLowerCase() === searchQuery.value.toLowerCase())

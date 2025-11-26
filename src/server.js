@@ -668,7 +668,8 @@ function serveStatic(req, res) {
   let pathname = parsed.pathname;
   if (!pathname || pathname === '/') pathname = '/index.html';
 
-  const roots = [path.join(__dirname, '..', 'public-dist'), path.join(__dirname, '..', 'public')];
+  // Serve from built Vue app (frontend/dist) or public folder for static assets
+  const roots = [path.join(__dirname, '..', 'frontend', 'dist'), path.join(__dirname, '..', 'public')];
   let foundPath = null;
   for (const root of roots) {
     const candidate = path.join(root, pathname);
@@ -680,9 +681,15 @@ function serveStatic(req, res) {
   }
 
   if (!foundPath) {
-    res.writeHead(404);
-    res.end('Not found');
-    return;
+    // SPA fallback: serve index.html for Vue Router to handle
+    const spaIndex = path.join(__dirname, '..', 'frontend', 'dist', 'index.html');
+    if (fs.existsSync(spaIndex)) {
+      foundPath = spaIndex;
+    } else {
+      res.writeHead(404);
+      res.end('Not found - run "bun run build" in frontend/ to build the Vue app');
+      return;
+    }
   }
 
   const ext = path.extname(foundPath).toLowerCase();
