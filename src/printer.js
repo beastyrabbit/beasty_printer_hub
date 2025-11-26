@@ -167,7 +167,8 @@ function buildSingleTaskTicket(task) {
   // ========== QR CODE ==========
   parts.push(hr('='));
   parts.push(align('center'));
-  parts.push(qrCode(String(task.id || task.title), { size: 8 }));
+  // Include "donotick:" prefix so scanner knows which system this belongs to
+  parts.push(qrCode(`donotick:${task.id || task.title}`, { size: 8 }));
   
   parts.push(feed(3));
   parts.push(cut());
@@ -453,4 +454,90 @@ async function pingPrinter(host, port = printerPort) {
   });
 }
 
-module.exports = { printTasks, pingPrinter };
+// ==============================================================================
+// WIFI QR CODE PRINT
+// ==============================================================================
+
+function escapeWifiString(str) {
+  // Escape special characters for WiFi QR format: \ ; , : "
+  return str.replace(/[\\;,:\"]/g, '\\$&');
+}
+
+function buildWifiQrTicket(ssid, password, type = 'WPA', hidden = false) {
+  const parts = [];
+  parts.push(init());
+
+  // Header
+  parts.push(align('center'));
+  parts.push(inverse(true));
+  parts.push(textSize(2, 1));
+  parts.push(text(' WLAN '));
+  parts.push(textSize(1, 1));
+  parts.push(text('\n'));
+  parts.push(inverse(false));
+  parts.push(feed(1));
+
+  // Network name
+  parts.push(textSize(2, 2));
+  parts.push(emphasis(true));
+  parts.push(text(ssid + '\n'));
+  parts.push(emphasis(false));
+  parts.push(textSize(1, 1));
+  parts.push(feed(1));
+
+  // Build WiFi QR code string
+  // Format: WIFI:T:WPA;S:mynetwork;P:mypassword;H:true;;
+  const escapedSsid = escapeWifiString(ssid);
+  const escapedPassword = escapeWifiString(password || '');
+  
+  let wifiString = `WIFI:T:${type};S:${escapedSsid};`;
+  if (type !== 'nopass' && password) {
+    wifiString += `P:${escapedPassword};`;
+  }
+  if (hidden) {
+    wifiString += 'H:true;';
+  }
+  wifiString += ';';
+
+  // QR Code (large for easy scanning)
+  parts.push(hr('='));
+  parts.push(qrCode(wifiString, { size: 10 }));
+  parts.push(feed(1));
+  parts.push(hr('='));
+
+  // Instructions
+  parts.push(feed(1));
+  parts.push(align('center'));
+  parts.push(text('QR-Code scannen\n'));
+  parts.push(text('zum Verbinden\n'));
+
+  parts.push(feed(3));
+  parts.push(cut());
+
+  return Buffer.concat(parts);
+}
+
+async function printWifiQr(params) {
+  const { host, port = printerPort, ssid, password, type, hidden } = params;
+  
+  if (!host) throw new Error('Printer host is missing');
+  if (!ssid) throw new Error('SSID is required');
+
+  const payload = buildWifiQrTicket(ssid, password, type, hidden);
+
+  return new Promise((resolve, reject) => {
+    const socket = net.createConnection({ host, port, timeout: 4000 }, () => {
+      socket.write(payload, () => {
+        socket.end();
+        resolve();
+      });
+    });
+    socket.on('error', (err) => reject(new Error(`Printer error: ${err.code || err.message}`)));
+    socket.on('timeout', () => {
+      socket.destroy();
+      reject(new Error('Printer connection timed out'));
+    });
+  });
+}
+
+module.exports = { printTasks, pingPrinter, printWifiQr };
