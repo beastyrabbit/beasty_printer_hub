@@ -52,6 +52,12 @@ function getDefaultConfig() {
     trashIcalUrl: '',
     trashEnable: true,
     
+    // Google Calendar OAuth
+    googleClientId: '',
+    googleClientSecret: '',
+    googleRefreshToken: '',
+    googleCalendarId: '',  // Calendar ID to fetch (optional, defaults to primary)
+    
     // Server
     serverPort: 3000,
     logLevel: 'info'

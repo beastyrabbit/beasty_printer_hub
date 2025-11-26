@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Save, CheckCircle, Wifi, Printer, Signal, Calendar, Bot, RefreshCw } from 'lucide-vue-next'
+import { Save, CheckCircle, Wifi, Printer, Signal, Calendar, Bot, RefreshCw, ExternalLink, Unlink } from 'lucide-vue-next'
+
+const route = useRoute()
 
 const config = ref({
   donotickBaseUrl: '',
@@ -20,7 +23,11 @@ const config = ref({
   // Calendar settings
   trashIcalUrl: '',
   trashEnable: false,
-  googleCalendarUrl: '',
+  // Google Calendar OAuth
+  googleClientId: '',
+  googleClientSecret: '',
+  googleCalendarId: '',
+  googleConnected: false,
   // AI settings
   ollamaEnabled: false,
   ollamaUrl: 'http://localhost:11434',
@@ -29,10 +36,16 @@ const config = ref({
   aiWeeklySummary: false,
 })
 
+// Google OAuth state
+const googleCalendars = ref<{id: string, summary: string, primary: boolean}[]>([])
+const googleConnecting = ref(false)
+const googleMessage = ref('')
+
 const saving = ref(false)
 const saved = ref(false)
 const passwordSet = ref(false)
 const wifiPasswordSet = ref(false)
+const googleSecretSet = ref(false)
 
 // Printer test states
 const testingConnection = ref(false)
@@ -62,7 +75,10 @@ async function loadConfig() {
       wifiHidden: cfg.wifiHidden || false,
       trashIcalUrl: cfg.trashIcalUrl || '',
       trashEnable: cfg.trashEnable || false,
-      googleCalendarUrl: cfg.googleCalendarUrl || '',
+      googleClientId: cfg.googleClientId || '',
+      googleClientSecret: '',
+      googleCalendarId: cfg.googleCalendarId || '',
+      googleConnected: cfg.googleConnected || false,
       ollamaEnabled: cfg.ollamaEnabled || false,
       ollamaUrl: cfg.ollamaUrl || 'http://localhost:11434',
       ollamaModel: cfg.ollamaModel || 'llama3.2',
@@ -71,8 +87,67 @@ async function loadConfig() {
     }
     passwordSet.value = cfg.donotickPassword === '********'
     wifiPasswordSet.value = cfg.wifiPassword === '********'
+    googleSecretSet.value = cfg.googleClientSecret === '********'
+    
+    // Load Google Calendar status
+    if (cfg.googleConnected) {
+      await loadGoogleStatus()
+    }
   } catch (err) {
     console.error('Failed to load config:', err)
+  }
+}
+
+async function loadGoogleStatus() {
+  try {
+    const res = await fetch('/api/google/status')
+    const data = await res.json()
+    config.value.googleConnected = data.connected
+    googleCalendars.value = data.calendars || []
+  } catch (err) {
+    console.error('Failed to load Google status:', err)
+  }
+}
+
+async function connectGoogle() {
+  // First save the credentials
+  if (config.value.googleClientId && config.value.googleClientSecret) {
+    await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        googleClientId: config.value.googleClientId,
+        googleClientSecret: config.value.googleClientSecret
+      })
+    })
+  }
+  
+  googleConnecting.value = true
+  try {
+    const res = await fetch('/api/google/auth-url')
+    const data = await res.json()
+    if (data.error) {
+      googleMessage.value = data.error
+      return
+    }
+    // Redirect to Google OAuth
+    window.location.href = data.authUrl
+  } catch (err) {
+    googleMessage.value = 'Fehler beim Verbinden'
+    console.error(err)
+  } finally {
+    googleConnecting.value = false
+  }
+}
+
+async function disconnectGoogle() {
+  try {
+    await fetch('/api/google/disconnect', { method: 'POST' })
+    config.value.googleConnected = false
+    googleCalendars.value = []
+    googleMessage.value = 'Google Kalender getrennt'
+  } catch (err) {
+    console.error('Failed to disconnect:', err)
   }
 }
 
@@ -81,13 +156,18 @@ async function saveConfig() {
   try {
     const updates: Record<string, any> = { ...config.value }
     
-    // Don't send empty passwords (keep existing)
+    // Don't send empty passwords/secrets (keep existing)
     if (!updates.donotickPassword) {
       delete updates.donotickPassword
     }
     if (!updates.wifiPassword) {
       delete updates.wifiPassword
     }
+    if (!updates.googleClientSecret) {
+      delete updates.googleClientSecret
+    }
+    // Remove read-only fields
+    delete updates.googleConnected
     
     await fetch('/api/config', {
       method: 'POST',
@@ -142,7 +222,22 @@ async function testAiConnection() {
   }
 }
 
-onMounted(loadConfig)
+onMounted(() => {
+  loadConfig()
+  
+  // Check for OAuth callback messages
+  const googleSuccess = route.query.google_success
+  const googleError = route.query.google_error
+  
+  if (googleSuccess) {
+    googleMessage.value = 'Google Kalender erfolgreich verbunden!'
+    // Remove query params from URL
+    window.history.replaceState({}, '', '/settings')
+  } else if (googleError) {
+    googleMessage.value = `Fehler: ${googleError}`
+    window.history.replaceState({}, '', '/settings')
+  }
+})
 </script>
 
 <template>
@@ -251,16 +346,92 @@ onMounted(loadConfig)
           </div>
         </div>
 
-        <!-- Family Calendar -->
-        <div class="space-y-3 p-4 border border-border rounded-lg">
-          <label class="text-sm font-medium">Familien-Kalender (Google)</label>
-          <Input 
-            v-model="config.googleCalendarUrl" 
-            placeholder="https://calendar.google.com/calendar/embed?src=..." 
-          />
-          <p class="text-xs text-muted-foreground">
-            Embed-URL oder iCal-URL des öffentlichen Google-Kalenders
-          </p>
+        <!-- Google Calendar OAuth -->
+        <div class="space-y-4 p-4 border border-border rounded-lg">
+          <div class="flex items-center justify-between">
+            <label class="text-sm font-medium">Google Kalender</label>
+            <div v-if="config.googleConnected" class="flex items-center gap-2 text-green-500 text-sm">
+              <div class="w-2 h-2 rounded-full bg-green-500" />
+              Verbunden
+            </div>
+          </div>
+          
+          <!-- OAuth Status Message -->
+          <div v-if="googleMessage" class="p-3 rounded-lg text-sm" 
+               :class="googleMessage.includes('Fehler') ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400'">
+            {{ googleMessage }}
+          </div>
+          
+          <!-- Connected State -->
+          <div v-if="config.googleConnected" class="space-y-3">
+            <div class="space-y-2">
+              <label class="text-sm text-muted-foreground">Kalender auswählen</label>
+              <select 
+                v-model="config.googleCalendarId"
+                class="w-full h-9 rounded-md border border-input bg-background text-foreground px-3 py-1 text-sm"
+              >
+                <option value="">Standard (Primary)</option>
+                <option v-for="cal in googleCalendars" :key="cal.id" :value="cal.id">
+                  {{ cal.summary }} {{ cal.primary ? '(Primary)' : '' }}
+                </option>
+              </select>
+            </div>
+            <Button variant="outline" @click="disconnectGoogle" class="text-red-400 hover:text-red-300">
+              <Unlink class="w-4 h-4 mr-2" />
+              Google Kalender trennen
+            </Button>
+          </div>
+          
+          <!-- Not Connected State -->
+          <div v-else class="space-y-4">
+            <p class="text-xs text-muted-foreground">
+              Verbinde deinen Google Kalender um private Termine anzuzeigen. 
+              Du benötigst OAuth-Zugangsdaten von der 
+              <a href="https://console.cloud.google.com/" target="_blank" class="text-primary hover:underline">
+                Google Cloud Console <ExternalLink class="w-3 h-3 inline" />
+              </a>
+            </p>
+            
+            <div class="space-y-3">
+              <div class="space-y-2">
+                <label class="text-sm font-medium">Client ID</label>
+                <Input 
+                  v-model="config.googleClientId" 
+                  placeholder="xxx.apps.googleusercontent.com" 
+                />
+              </div>
+              <div class="space-y-2">
+                <label class="text-sm font-medium">Client Secret</label>
+                <Input 
+                  v-model="config.googleClientSecret" 
+                  type="password"
+                  :placeholder="googleSecretSet ? '••••••• (gespeichert)' : 'Ihr Client Secret'" 
+                />
+              </div>
+            </div>
+            
+            <Button 
+              @click="connectGoogle" 
+              :disabled="googleConnecting || (!config.googleClientId && !googleSecretSet)"
+              class="w-full"
+            >
+              <ExternalLink class="w-4 h-4 mr-2" />
+              {{ googleConnecting ? 'Verbinde...' : 'Mit Google verbinden' }}
+            </Button>
+            
+            <details class="text-xs text-muted-foreground">
+              <summary class="cursor-pointer hover:text-foreground">Anleitung</summary>
+              <ol class="mt-2 space-y-1 list-decimal list-inside">
+                <li>Gehe zu <a href="https://console.cloud.google.com/" target="_blank" class="text-primary hover:underline">console.cloud.google.com</a></li>
+                <li>Erstelle ein neues Projekt oder wähle ein bestehendes</li>
+                <li>Aktiviere die "Google Calendar API"</li>
+                <li>Gehe zu "Credentials" → "Create Credentials" → "OAuth 2.0 Client ID"</li>
+                <li>Wähle "Web application"</li>
+                <li>Füge als Redirect URI hinzu: <code class="bg-muted px-1 rounded">http://localhost:3000/api/google/callback</code></li>
+                <li>Kopiere Client ID und Client Secret hierher</li>
+              </ol>
+            </details>
+          </div>
         </div>
 
       </CardContent>

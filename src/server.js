@@ -10,6 +10,7 @@ const { createDailyRunner } = require('./scheduler');
 const db = require('./db');
 const { checkOllamaStatus, generateDailySummary, generateWeeklySummary } = require('./ai');
 const { getTodayEvents, getWeekEvents, formatEventsForPrint } = require('./calendar');
+const googleCalendar = require('./googleCalendar');
 
 const state = {
   lastRunAt: null,
@@ -319,8 +320,14 @@ async function handleApi(req, res) {
   // Calendar events for today
   if (pathname === '/api/calendar/today' && req.method === 'GET') {
     try {
-      const cfg = config.getAll();
-      const events = await getTodayEvents(cfg);
+      let events = [];
+      // Use Google Calendar API if connected, otherwise fall back to iCal
+      if (googleCalendar.isConnected()) {
+        events = await googleCalendar.getTodayEvents();
+      } else {
+        const cfg = config.getAll();
+        events = await getTodayEvents(cfg);
+      }
       sendJson(res, 200, { events });
     } catch (err) {
       sendJson(res, 500, { error: err.message });
@@ -331,8 +338,14 @@ async function handleApi(req, res) {
   // Calendar events for the week
   if (pathname === '/api/calendar/week' && req.method === 'GET') {
     try {
-      const cfg = config.getAll();
-      const events = await getWeekEvents(cfg);
+      let events = [];
+      // Use Google Calendar API if connected, otherwise fall back to iCal
+      if (googleCalendar.isConnected()) {
+        events = await googleCalendar.getWeekEvents();
+      } else {
+        const cfg = config.getAll();
+        events = await getWeekEvents(cfg);
+      }
       sendJson(res, 200, { events });
     } catch (err) {
       sendJson(res, 500, { error: err.message });
@@ -428,12 +441,15 @@ async function handleApi(req, res) {
   // Config API
   if (pathname === '/api/config' && req.method === 'GET') {
     const cfg = config.getAll();
-    // Don't expose passwords in full, just indicate if set
+    // Don't expose passwords/secrets in full, just indicate if set
     const safe = {
       ...cfg,
       donotickPassword: cfg.donotickPassword ? '********' : '',
       donotickToken: cfg.donotickToken ? '********' : '',
-      wifiPassword: cfg.wifiPassword ? '********' : ''
+      wifiPassword: cfg.wifiPassword ? '********' : '',
+      googleClientSecret: cfg.googleClientSecret ? '********' : '',
+      googleRefreshToken: cfg.googleRefreshToken ? '********' : '',
+      googleConnected: googleCalendar.isConnected()
     };
     sendJson(res, 200, { config: safe });
     return true;
@@ -451,7 +467,7 @@ async function handleApi(req, res) {
         'dailyPrintTime', 'weeklyPrintTime', 'weeklyPrintDay',
         'trashIcalUrl', 'trashEnable',
         'wifiSsid', 'wifiPassword', 'wifiType', 'wifiHidden',
-        'googleCalendarUrl', 'microsoftCalendarEnabled',
+        'googleClientId', 'googleClientSecret', 'googleCalendarId',
         'ollamaEnabled', 'ollamaUrl', 'ollamaModel', 'aiDailySummary', 'aiWeeklySummary',
         'logLevel'
       ];
@@ -475,6 +491,86 @@ async function handleApi(req, res) {
     } catch (err) {
       sendJson(res, 500, { error: err.message });
     }
+    return true;
+  }
+
+  // ============ Google Calendar OAuth ============
+
+  // Check if Google Calendar is connected
+  if (pathname === '/api/google/status' && req.method === 'GET') {
+    const connected = googleCalendar.isConnected();
+    let calendars = [];
+    if (connected) {
+      try {
+        calendars = await googleCalendar.listCalendars();
+      } catch (err) {
+        // Ignore - calendars list failed but connection might still work
+      }
+    }
+    sendJson(res, 200, { 
+      connected,
+      hasCredentials: !!(config.googleClientId && config.googleClientSecret),
+      calendars
+    });
+    return true;
+  }
+
+  // Get OAuth authorization URL
+  if (pathname === '/api/google/auth-url' && req.method === 'GET') {
+    if (!config.googleClientId || !config.googleClientSecret) {
+      sendJson(res, 400, { error: 'Google Client ID and Secret not configured' });
+      return true;
+    }
+    
+    const redirectUri = `http://${req.headers.host}/api/google/callback`;
+    const authUrl = googleCalendar.getAuthUrl(redirectUri);
+    sendJson(res, 200, { authUrl });
+    return true;
+  }
+
+  // OAuth callback - receives authorization code
+  if (pathname === '/api/google/callback' && req.method === 'GET') {
+    const parsed = url.parse(req.url, true);
+    const code = parsed.query.code;
+    const error = parsed.query.error;
+    
+    if (error) {
+      res.writeHead(302, { Location: '/settings?google_error=' + encodeURIComponent(error) });
+      res.end();
+      return true;
+    }
+    
+    if (!code) {
+      res.writeHead(302, { Location: '/settings?google_error=no_code' });
+      res.end();
+      return true;
+    }
+    
+    try {
+      const redirectUri = `http://${req.headers.host}/api/google/callback`;
+      const tokens = await googleCalendar.exchangeCodeForTokens(code, redirectUri);
+      
+      // Save refresh token
+      if (tokens.refresh_token) {
+        db.setConfig({ googleRefreshToken: tokens.refresh_token });
+        log('info', 'Google Calendar connected successfully');
+      }
+      
+      res.writeHead(302, { Location: '/settings?google_success=1' });
+      res.end();
+    } catch (err) {
+      log('error', 'Google OAuth failed', err.message);
+      res.writeHead(302, { Location: '/settings?google_error=' + encodeURIComponent(err.message) });
+      res.end();
+    }
+    return true;
+  }
+
+  // Disconnect Google Calendar
+  if (pathname === '/api/google/disconnect' && req.method === 'POST') {
+    googleCalendar.disconnect();
+    log('info', 'Google Calendar disconnected');
+    sendJson(res, 200, { status: 'disconnected' });
     return true;
   }
 
