@@ -324,14 +324,18 @@ async function handleApi(req, res) {
     return true;
   }
 
-  // Print WiFi QR code
+  // Print WiFi QR code - uses saved settings from config
   if (pathname === '/api/print/wifi' && req.method === 'POST') {
     try {
-      const body = await readBody(req);
-      const { ssid, password, type, hidden } = body;
+      // Use saved settings from config
+      const cfg = config.getAll();
+      const ssid = cfg.wifiSsid;
+      const password = cfg.wifiPassword;
+      const type = cfg.wifiType || 'WPA';
+      const hidden = cfg.wifiHidden || false;
       
       if (!ssid) {
-        sendJson(res, 400, { error: 'SSID is required' });
+        sendJson(res, 400, { error: 'WLAN nicht konfiguriert. Bitte in Einstellungen konfigurieren.' });
         return true;
       }
       
@@ -340,8 +344,8 @@ async function handleApi(req, res) {
         port: config.printerPort,
         ssid,
         password,
-        type: type || 'WPA',
-        hidden: !!hidden
+        type,
+        hidden
       });
       
       log('info', `Printed WiFi QR code for "${ssid}"`);
@@ -390,11 +394,12 @@ async function handleApi(req, res) {
   // Config API
   if (pathname === '/api/config' && req.method === 'GET') {
     const cfg = config.getAll();
-    // Don't expose password in full, just indicate if set
+    // Don't expose passwords in full, just indicate if set
     const safe = {
       ...cfg,
       donotickPassword: cfg.donotickPassword ? '********' : '',
-      donotickToken: cfg.donotickToken ? '********' : ''
+      donotickToken: cfg.donotickToken ? '********' : '',
+      wifiPassword: cfg.wifiPassword ? '********' : ''
     };
     sendJson(res, 200, { config: safe });
     return true;
@@ -411,13 +416,14 @@ async function handleApi(req, res) {
         'printerIp', 'printerPort',
         'dailyPrintTime', 'weeklyPrintTime', 'weeklyPrintDay',
         'trashIcalUrl', 'trashEnable',
+        'wifiSsid', 'wifiPassword', 'wifiType', 'wifiHidden',
         'logLevel'
       ];
       
       for (const key of allowed) {
         if (body[key] !== undefined) {
           // Don't update password if it's the masked value
-          if ((key === 'donotickPassword' || key === 'donotickToken') && body[key] === '********') {
+          if ((key === 'donotickPassword' || key === 'donotickToken' || key === 'wifiPassword') && body[key] === '********') {
             continue;
           }
           updates[key] = body[key];
@@ -499,15 +505,15 @@ async function handleApi(req, res) {
     return true;
   }
 
-  // Add item to shopping list
+  // Add item or collection to shopping list
   if (pathname === '/api/shopping/list' && req.method === 'POST') {
     try {
       const body = await readBody(req);
-      if (!body.itemId) {
-        sendJson(res, 400, { error: 'itemId is required' });
+      if (!body.itemId && !body.collectionId) {
+        sendJson(res, 400, { error: 'itemId or collectionId is required' });
         return true;
       }
-      const list = db.addToShoppingList(body.itemId, body.quantity || 1);
+      const list = db.addToShoppingList(body.itemId, body.quantity || 1, body.collectionId);
       sendJson(res, 200, { list });
     } catch (err) {
       sendJson(res, 500, { error: err.message });
@@ -518,9 +524,9 @@ async function handleApi(req, res) {
   // Update quantity in shopping list
   if (pathname.match(/^\/api\/shopping\/list\/[^/]+$/) && req.method === 'PATCH') {
     try {
-      const itemId = pathname.split('/')[4];
+      const id = pathname.split('/')[4];
       const body = await readBody(req);
-      const list = db.updateShoppingListQuantity(itemId, body.quantity);
+      const list = db.updateShoppingListQuantity(id, body.quantity);
       sendJson(res, 200, { list });
     } catch (err) {
       sendJson(res, 500, { error: err.message });
@@ -528,10 +534,10 @@ async function handleApi(req, res) {
     return true;
   }
 
-  // Remove item from shopping list
+  // Remove item or collection from shopping list
   if (pathname.match(/^\/api\/shopping\/list\/[^/]+$/) && req.method === 'DELETE') {
-    const itemId = pathname.split('/')[4];
-    const list = db.removeFromShoppingList(itemId);
+    const id = pathname.split('/')[4];
+    const list = db.removeFromShoppingList(id);
     sendJson(res, 200, { list });
     return true;
   }

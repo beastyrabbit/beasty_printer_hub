@@ -19,11 +19,6 @@ const router = createRouter({
       component: () => import('@/views/CollectionsView.vue'),
     },
     {
-      path: '/wifi',
-      name: 'wifi',
-      component: () => import('@/views/WifiView.vue'),
-    },
-    {
       path: '/settings',
       name: 'settings',
       component: () => import('@/views/SettingsView.vue'),

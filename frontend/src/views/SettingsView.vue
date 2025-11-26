@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Save, CheckCircle, Wifi, WifiOff, Printer } from 'lucide-vue-next'
+import { Save, CheckCircle, Wifi, Printer } from 'lucide-vue-next'
 
 const config = ref({
   donotickBaseUrl: '',
@@ -13,15 +13,18 @@ const config = ref({
   printerPort: 9100,
   dailyPrintTime: '08:00',
   weeklyPrintTime: '08:00',
+  wifiSsid: '',
+  wifiPassword: '',
+  wifiType: 'WPA',
+  wifiHidden: false,
 })
 
 const saving = ref(false)
 const saved = ref(false)
 const passwordSet = ref(false)
+const wifiPasswordSet = ref(false)
 
 // Printer test states
-const testingConnection = ref(false)
-const connectionResult = ref<{ reachable: boolean; error?: string } | null>(null)
 const testingPrint = ref(false)
 
 async function loadConfig() {
@@ -37,8 +40,13 @@ async function loadConfig() {
       printerPort: cfg.printerPort || 9100,
       dailyPrintTime: cfg.dailyPrintTime || '08:00',
       weeklyPrintTime: cfg.weeklyPrintTime || '08:00',
+      wifiSsid: cfg.wifiSsid || '',
+      wifiPassword: '',
+      wifiType: cfg.wifiType || 'WPA',
+      wifiHidden: cfg.wifiHidden || false,
     }
     passwordSet.value = cfg.donotickPassword === '********'
+    wifiPasswordSet.value = cfg.wifiPassword === '********'
   } catch (err) {
     console.error('Failed to load config:', err)
   }
@@ -49,9 +57,12 @@ async function saveConfig() {
   try {
     const updates: Record<string, any> = { ...config.value }
     
-    // Don't send empty password (keep existing)
+    // Don't send empty passwords (keep existing)
     if (!updates.donotickPassword) {
       delete updates.donotickPassword
+    }
+    if (!updates.wifiPassword) {
+      delete updates.wifiPassword
     }
     
     await fetch('/api/config', {
@@ -66,19 +77,6 @@ async function saveConfig() {
     console.error('Failed to save:', err)
   } finally {
     saving.value = false
-  }
-}
-
-async function testConnection() {
-  testingConnection.value = true
-  connectionResult.value = null
-  try {
-    const res = await fetch('/api/printer/status')
-    connectionResult.value = await res.json()
-  } catch (err) {
-    connectionResult.value = { reachable: false, error: 'Fehler bei der Verbindung' }
-  } finally {
-    testingConnection.value = false
   }
 }
 
@@ -148,28 +146,54 @@ onMounted(loadConfig)
           </div>
         </div>
 
-        <!-- Test Buttons -->
-        <div class="flex items-center gap-4 pt-2">
-          <Button variant="outline" @click="testConnection" :disabled="testingConnection">
-            <template v-if="testingConnection">
-              Teste...
-            </template>
-            <template v-else-if="connectionResult">
-              <Wifi v-if="connectionResult.reachable" class="w-4 h-4 mr-2 text-green-500" />
-              <WifiOff v-else class="w-4 h-4 mr-2 text-red-500" />
-              {{ connectionResult.reachable ? 'Verbunden' : 'Nicht erreichbar' }}
-            </template>
-            <template v-else>
-              <Wifi class="w-4 h-4 mr-2" />
-              Verbindung testen
-            </template>
-          </Button>
-          
-          <Button variant="outline" @click="testPrint" :disabled="testingPrint">
-            <Printer class="w-4 h-4 mr-2" />
-            {{ testingPrint ? 'Druckt...' : 'Testseite drucken' }}
-          </Button>
+        <Button variant="outline" @click="testPrint" :disabled="testingPrint">
+          <Printer class="w-4 h-4 mr-2" />
+          {{ testingPrint ? 'Druckt...' : 'Testseite drucken' }}
+        </Button>
+      </CardContent>
+    </Card>
+
+    <!-- WLAN QR Settings -->
+    <Card>
+      <CardHeader>
+        <CardTitle class="flex items-center gap-2">
+          <Wifi class="w-5 h-5" />
+          WLAN QR-Code
+        </CardTitle>
+      </CardHeader>
+      <CardContent class="space-y-4">
+        <p class="text-sm text-muted-foreground">
+          Diese Einstellungen werden für den WLAN QR-Code Button verwendet.
+        </p>
+        <div class="space-y-2">
+          <label class="text-sm font-medium">Netzwerkname (SSID)</label>
+          <Input v-model="config.wifiSsid" placeholder="MeinWLAN" />
         </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="space-y-2">
+            <label class="text-sm font-medium">Passwort</label>
+            <Input
+              v-model="config.wifiPassword"
+              type="password"
+              :placeholder="wifiPasswordSet ? '••••••• (gespeichert)' : 'Passwort'"
+            />
+          </div>
+          <div class="space-y-2">
+            <label class="text-sm font-medium">Verschlüsselung</label>
+            <select 
+              v-model="config.wifiType"
+              class="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+            >
+              <option value="WPA">WPA/WPA2/WPA3</option>
+              <option value="WEP">WEP</option>
+              <option value="nopass">Offen</option>
+            </select>
+          </div>
+        </div>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" v-model="config.wifiHidden" class="rounded" />
+          <span class="text-sm">Verstecktes Netzwerk</span>
+        </label>
       </CardContent>
     </Card>
 

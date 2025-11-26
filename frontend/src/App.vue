@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router'
-import { Printer, ShoppingCart, Settings, FileText } from 'lucide-vue-next'
+import { Printer, ShoppingCart, Settings, FileText, ExternalLink } from 'lucide-vue-next'
 </script>
 
 <template>
@@ -22,6 +22,14 @@ import { Printer, ShoppingCart, Settings, FileText } from 'lucide-vue-next'
 
           <!-- Navigation -->
           <nav class="flex items-center gap-1">
+            <a
+              href="https://donotick.beastyrabbit.com/"
+              target="_blank"
+              class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            >
+              <ExternalLink class="w-4 h-4" />
+              <span>Donotick</span>
+            </a>
             <RouterLink
               to="/"
               class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"

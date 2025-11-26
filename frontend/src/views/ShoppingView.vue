@@ -17,34 +17,114 @@ interface ShoppingItem {
   alwaysQuantity: number
 }
 
-interface ListItem {
-  itemId: string
+interface ListEntry {
+  itemId?: string
+  collectionId?: string
   quantity: number
 }
 
 interface Collection {
   id: string
   name: string
+  usageCount?: number
   items: { itemId: string; quantity: number }[]
 }
 
+// Combined type for display
+interface LagerEntry {
+  type: 'item' | 'collection'
+  id: string
+  name: string
+  unit?: string
+  usageCount: number
+  alwaysOnList?: boolean
+  itemCount?: number
+}
+
+// List entry with resolved details
+interface ListEntryWithDetails {
+  type: 'item' | 'collection'
+  itemId?: string
+  collectionId?: string
+  quantity: number
+  name: string
+  unit?: string
+  itemCount?: number
+}
+
 const items = ref<ShoppingItem[]>([])
-const list = ref<ListItem[]>([])
+const list = ref<ListEntry[]>([])
 const collections = ref<Collection[]>([])
 const searchQuery = ref('')
 const loading = ref(false)
 
-const filteredItems = computed(() => {
-  if (!searchQuery.value) return items.value
-  const q = searchQuery.value.toLowerCase()
-  return items.value.filter(i => i.name.toLowerCase().includes(q))
+// Combine items and collections into a single sorted list
+const lagerEntries = computed<LagerEntry[]>(() => {
+  const entries: LagerEntry[] = []
+  
+  // Add items
+  for (const item of items.value) {
+    entries.push({
+      type: 'item',
+      id: item.id,
+      name: item.name,
+      unit: item.unit,
+      usageCount: item.usageCount,
+      alwaysOnList: item.alwaysOnList
+    })
+  }
+  
+  // Add collections
+  for (const col of collections.value) {
+    entries.push({
+      type: 'collection',
+      id: col.id,
+      name: col.name,
+      usageCount: col.usageCount || 0,
+      itemCount: col.items.length
+    })
+  }
+  
+  // Sort by usage count (descending)
+  entries.sort((a, b) => b.usageCount - a.usageCount)
+  
+  return entries
 })
 
-const listWithItems = computed(() => {
-  return list.value.map(l => {
-    const item = items.value.find(i => i.id === l.itemId)
-    return { ...l, item }
-  }).filter(l => l.item)
+const filteredLager = computed(() => {
+  if (!searchQuery.value) return lagerEntries.value
+  const q = searchQuery.value.toLowerCase()
+  return lagerEntries.value.filter(e => e.name.toLowerCase().includes(q))
+})
+
+const listWithDetails = computed<ListEntryWithDetails[]>(() => {
+  const result: ListEntryWithDetails[] = []
+  for (const l of list.value) {
+    if (l.itemId) {
+      const item = items.value.find(i => i.id === l.itemId)
+      if (item) {
+        result.push({
+          type: 'item',
+          itemId: l.itemId,
+          quantity: l.quantity,
+          name: item.name,
+          unit: item.unit
+        })
+      }
+    } else if (l.collectionId) {
+      const col = collections.value.find(c => c.id === l.collectionId)
+      if (col) {
+        result.push({
+          type: 'collection',
+          collectionId: l.collectionId,
+          quantity: l.quantity,
+          name: col.name,
+          itemCount: col.items.length
+        })
+      }
+    }
+  }
+  return result
 })
 
 async function loadData() {
@@ -68,41 +148,47 @@ async function loadData() {
   }
 }
 
-async function addToList(itemId: string) {
+async function addToList(entry: LagerEntry) {
   try {
-    await fetch('/api/shopping/list', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ itemId, quantity: 1 })
-    })
+    if (entry.type === 'item') {
+      await fetch('/api/shopping/list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId: entry.id, quantity: 1 })
+      })
+    } else {
+      // Add collection as a collection entry (not resolved)
+      await fetch('/api/shopping/list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collectionId: entry.id, quantity: 1 })
+      })
+    }
     await loadData()
   } catch (err) {
     console.error('Failed to add:', err)
   }
 }
 
-async function removeFromList(itemId: string) {
+async function removeFromList(entry: ListEntryWithDetails) {
   try {
-    await fetch('/api/shopping/list', { 
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ itemId })
-    })
+    const id = entry.itemId || entry.collectionId
+    await fetch(`/api/shopping/list/${id}`, { method: 'DELETE' })
     await loadData()
   } catch (err) {
     console.error('Failed to remove:', err)
   }
 }
 
-async function updateQuantity(itemId: string, quantity: number) {
+async function updateQuantity(entry: ListEntryWithDetails, quantity: number) {
   try {
-    await fetch('/api/shopping/list', {
+    const id = entry.itemId || entry.collectionId
+    await fetch(`/api/shopping/list/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ itemId, quantity })
+      body: JSON.stringify({ quantity })
     })
-    const item = list.value.find(l => l.itemId === itemId)
-    if (item) item.quantity = quantity
+    await loadData()
   } catch (err) {
     console.error('Failed to update:', err)
   }
@@ -118,7 +204,7 @@ async function createItem(name: string) {
     const data = await res.json()
     if (data.item) {
       items.value.push(data.item)
-      await addToList(data.item.id)
+      await addToList({ type: 'item', id: data.item.id, name: data.item.name, usageCount: 0 })
       searchQuery.value = ''
     }
   } catch (err) {
@@ -126,29 +212,20 @@ async function createItem(name: string) {
   }
 }
 
-async function applyCollection(collectionId: string) {
-  try {
-    await fetch(`/api/shopping/collections/${collectionId}/apply`, {
-      method: 'POST'
-    })
-    await loadData()
-  } catch (err) {
-    console.error('Failed to apply collection:', err)
-  }
-}
-
 function handleSearch(e: KeyboardEvent) {
   if (e.key === 'Enter' && searchQuery.value.trim()) {
-    const filtered = filteredItems.value
+    const filtered = filteredLager.value
     if (filtered.length === 1 && filtered[0]) {
-      addToList(filtered[0].id)
+      addToList(filtered[0])
       searchQuery.value = ''
     } else {
-      const exact = items.value.find(i => i.name.toLowerCase() === searchQuery.value.toLowerCase())
+      // Check for exact match
+      const exact = lagerEntries.value.find(e => e.name.toLowerCase() === searchQuery.value.toLowerCase())
       if (exact) {
-        addToList(exact.id)
+        addToList(exact)
         searchQuery.value = ''
       } else {
+        // Create new item
         createItem(searchQuery.value.trim())
       }
     }
@@ -164,10 +241,24 @@ async function printList() {
 }
 
 async function copyList() {
-  const text = listWithItems.value
-    .map(l => `${l.quantity}x ${l.item?.name}`)
-    .join('\n')
-  await navigator.clipboard.writeText(text)
+  // Resolve collections to their items for copy
+  const lines: string[] = []
+  for (const entry of listWithDetails.value) {
+    if (entry.type === 'collection' && entry.collectionId) {
+      const col = collections.value.find(c => c.id === entry.collectionId)
+      if (col) {
+        for (const colItem of col.items) {
+          const item = items.value.find(i => i.id === colItem.itemId)
+          if (item) {
+            lines.push(`${colItem.quantity * entry.quantity}x ${item.name}`)
+          }
+        }
+      }
+    } else {
+      lines.push(`${entry.quantity}x ${entry.name}`)
+    }
+  }
+  await navigator.clipboard.writeText(lines.join('\n'))
 }
 
 async function resetList() {
@@ -202,7 +293,7 @@ onMounted(loadData)
       </div>
       <Button variant="outline" @click="router.push('/collections')">
         <FolderPlus class="w-4 h-4 mr-2" />
-        Sammlungen
+        Sammlungen verwalten
       </Button>
     </div>
 
@@ -214,7 +305,7 @@ onMounted(loadData)
           <div class="flex items-center justify-between">
             <CardTitle>Lager</CardTitle>
             <span class="text-sm text-muted-foreground bg-secondary px-2 py-1 rounded-full">
-              {{ items.length }}
+              {{ lagerEntries.length }}
             </span>
           </div>
         </CardHeader>
@@ -231,43 +322,26 @@ onMounted(loadData)
             </p>
           </div>
 
-          <!-- Collections Section -->
-          <div v-if="collections.length > 0" class="space-y-2">
-            <h3 class="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Sammlungen</h3>
+          <!-- Combined Items + Collections List -->
+          <div class="space-y-1 max-h-[500px] overflow-y-auto">
             <div
-              v-for="collection in collections"
-              :key="collection.id"
-              class="flex items-center justify-between p-3 rounded-lg bg-primary/5 border border-primary/20 hover:bg-primary/10 transition-colors cursor-pointer"
-              @click="applyCollection(collection.id)"
+              v-for="entry in filteredLager"
+              :key="entry.type + '-' + entry.id"
+              class="flex items-center justify-between p-3 rounded-lg transition-colors cursor-pointer"
+              :class="entry.type === 'collection' 
+                ? 'bg-primary/5 border border-primary/20 hover:bg-primary/10' 
+                : 'bg-secondary/50 hover:bg-secondary'"
+              @click="addToList(entry)"
             >
               <div class="flex items-center gap-2">
-                <Folder class="w-4 h-4 text-primary" />
-                <span class="font-medium">{{ collection.name }}</span>
+                <Folder v-if="entry.type === 'collection'" class="w-4 h-4 text-primary" />
+                <span class="font-medium">{{ entry.name }}</span>
+                <span v-if="entry.alwaysOnList" class="text-primary" title="Immer auf der Liste">★</span>
               </div>
               <div class="flex items-center gap-2">
-                <span class="text-sm text-muted-foreground">{{ collection.items.length }} Items</span>
-                <Button variant="ghost" size="icon" class="h-8 w-8">
-                  <Plus class="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Items List -->
-          <div class="space-y-2 max-h-80 overflow-y-auto">
-            <div
-              v-for="item in filteredItems"
-              :key="item.id"
-              class="flex items-center justify-between p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors cursor-pointer"
-              @click="addToList(item.id)"
-            >
-              <div class="flex items-center gap-2">
-                <span class="font-medium">{{ item.name }}</span>
-                <span v-if="item.alwaysOnList" class="text-primary" title="Immer auf der Liste">★</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-sm text-muted-foreground">{{ getUnitShort(item.unit) }}</span>
-                <Button variant="ghost" size="icon" class="h-8 w-8" @click.stop="addToList(item.id)">
+                <span v-if="entry.type === 'item'" class="text-sm text-muted-foreground">{{ getUnitShort(entry.unit || 'st') }}</span>
+                <span v-else class="text-sm text-muted-foreground">{{ entry.itemCount }} Items</span>
+                <Button variant="ghost" size="icon" class="h-8 w-8" @click.stop="addToList(entry)">
                   <Plus class="w-4 h-4" />
                 </Button>
               </div>
@@ -290,21 +364,26 @@ onMounted(loadData)
           <!-- List Items -->
           <div class="space-y-2 min-h-48">
             <div
-              v-for="item in listWithItems"
-              :key="item.itemId"
-              class="flex items-center justify-between p-3 rounded-lg bg-secondary/50"
+              v-for="entry in listWithDetails"
+              :key="(entry.itemId || entry.collectionId)"
+              class="flex items-center justify-between p-3 rounded-lg"
+              :class="entry.type === 'collection' ? 'bg-primary/5 border border-primary/20' : 'bg-secondary/50'"
             >
-              <span class="font-medium">{{ item.item?.name }}</span>
+              <div class="flex items-center gap-2">
+                <Folder v-if="entry.type === 'collection'" class="w-4 h-4 text-primary" />
+                <span class="font-medium">{{ entry.name }}</span>
+              </div>
               <div class="flex items-center gap-2">
                 <input
                   type="number"
-                  :value="item.quantity"
+                  :value="entry.quantity"
                   min="1"
                   class="w-16 h-8 rounded border border-input bg-transparent px-2 text-center text-sm"
-                  @change="(e) => updateQuantity(item.itemId, parseInt((e.target as HTMLInputElement).value) || 1)"
+                  @change="(e) => updateQuantity(entry, parseInt((e.target as HTMLInputElement).value) || 1)"
                 />
-                <span class="text-sm text-muted-foreground w-10">{{ getUnitShort(item.item?.unit || 'st') }}</span>
-                <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive hover:text-destructive" @click="removeFromList(item.itemId)">
+                <span v-if="entry.type === 'item'" class="text-sm text-muted-foreground w-10">{{ getUnitShort(entry.unit || 'st') }}</span>
+                <span v-else class="text-xs text-muted-foreground">{{ entry.itemCount }} Items</span>
+                <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive hover:text-destructive" @click="removeFromList(entry)">
                   <X class="w-4 h-4" />
                 </Button>
               </div>

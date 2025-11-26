@@ -341,33 +341,53 @@ function getShoppingList() {
   });
 }
 
-// Add item to shopping list (or increase quantity if exists)
-function addToShoppingList(itemId, quantity = 1) {
+// Add item or collection to shopping list (or increase quantity if exists)
+function addToShoppingList(itemId, quantity = 1, collectionId = null) {
   const db = loadDb();
-  const existing = db.shopping.list.find(l => l.itemId === itemId);
-  if (existing) {
-    existing.quantity = (existing.quantity || 1) + quantity;
-  } else {
-    db.shopping.list.push({
-      itemId,
-      quantity,
-      addedAt: new Date().toISOString()
-    });
-    // Increment usage count
-    const item = db.shopping.items.find(i => i.id === itemId);
-    if (item) item.usageCount = (item.usageCount || 0) + 1;
+  
+  if (collectionId) {
+    // Adding a collection
+    const existing = db.shopping.list.find(l => l.collectionId === collectionId);
+    if (existing) {
+      existing.quantity = (existing.quantity || 1) + quantity;
+    } else {
+      db.shopping.list.push({
+        collectionId,
+        quantity,
+        addedAt: new Date().toISOString()
+      });
+      // Increment usage count for collection
+      const col = db.shopping.collections.find(c => c.id === collectionId);
+      if (col) col.usageCount = (col.usageCount || 0) + 1;
+    }
+  } else if (itemId) {
+    // Adding an item
+    const existing = db.shopping.list.find(l => l.itemId === itemId);
+    if (existing) {
+      existing.quantity = (existing.quantity || 1) + quantity;
+    } else {
+      db.shopping.list.push({
+        itemId,
+        quantity,
+        addedAt: new Date().toISOString()
+      });
+      // Increment usage count
+      const item = db.shopping.items.find(i => i.id === itemId);
+      if (item) item.usageCount = (item.usageCount || 0) + 1;
+    }
   }
+  
   saveDb(db);
   return getShoppingList();
 }
 
-// Update quantity in shopping list
-function updateShoppingListQuantity(itemId, quantity) {
+// Update quantity in shopping list (works for both items and collections)
+function updateShoppingListQuantity(id, quantity) {
   const db = loadDb();
-  const entry = db.shopping.list.find(l => l.itemId === itemId);
+  const entry = db.shopping.list.find(l => l.itemId === id || l.collectionId === id);
   if (entry) {
     if (quantity <= 0) {
-      db.shopping.list = db.shopping.list.filter(l => l.itemId !== itemId);
+      db.shopping.list = db.shopping.list.filter(l => l.itemId !== id && l.collectionId !== id);
     } else {
       entry.quantity = quantity;
     }
@@ -376,10 +396,10 @@ function updateShoppingListQuantity(itemId, quantity) {
   return getShoppingList();
 }
 
-// Remove item from shopping list
-function removeFromShoppingList(itemId) {
+// Remove item or collection from shopping list
+function removeFromShoppingList(id) {
   const db = loadDb();
-  db.shopping.list = db.shopping.list.filter(l => l.itemId !== itemId);
+  db.shopping.list = db.shopping.list.filter(l => l.itemId !== id && l.collectionId !== id);
   saveDb(db);
   return getShoppingList();
 }

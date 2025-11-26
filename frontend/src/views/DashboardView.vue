@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckSquare, Calendar, Printer, Wifi, WifiOff } from 'lucide-vue-next'
+import { CheckSquare, Calendar, Printer, Wifi } from 'lucide-vue-next'
 
 interface Task {
   id: string | number
@@ -19,10 +19,12 @@ const todayCount = ref(0)
 const weekCount = ref(0)
 const printerStatus = ref<{ reachable: boolean; ip?: string } | null>(null)
 
+let printerCheckInterval: number | null = null
+
 async function loadTasks() {
   loading.value = true
   try {
-    const res = await fetch('/api/tasks/today')
+    const res = await fetch('/api/todos/today')
     const data = await res.json()
     tasks.value = data.tasks || []
     todayCount.value = tasks.value.length
@@ -35,7 +37,7 @@ async function loadTasks() {
 
 async function loadWeekTasks() {
   try {
-    const res = await fetch('/api/tasks/week')
+    const res = await fetch('/api/todos/week')
     const data = await res.json()
     weekTasks.value = data.tasks || []
     weekCount.value = weekTasks.value.length
@@ -71,7 +73,7 @@ async function printWeeklySummary() {
 
 async function printTask(task: Task) {
   try {
-    await fetch('/api/tasks/print', {
+    await fetch('/api/todos/print', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ taskId: task.id })
@@ -81,23 +83,39 @@ async function printTask(task: Task) {
   }
 }
 
+async function printWifiQr() {
+  try {
+    await fetch('/api/print/wifi', { method: 'POST' })
+  } catch (err) {
+    console.error('Print failed:', err)
+  }
+}
+
 onMounted(() => {
   loadTasks()
   loadWeekTasks()
   checkPrinter()
+  // Auto-check printer every 5 seconds
+  printerCheckInterval = window.setInterval(checkPrinter, 5000)
+})
+
+onUnmounted(() => {
+  if (printerCheckInterval) {
+    clearInterval(printerCheckInterval)
+  }
 })
 </script>
 
 <template>
   <div class="space-y-6">
-    <!-- Page Header with WLAN button -->
+    <!-- Page Header with buttons -->
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-bold">Dashboard</h1>
         <p class="text-muted-foreground">Übersicht deiner Aufgaben</p>
       </div>
       <div class="flex gap-2">
-        <Button variant="outline" @click="$router.push('/wifi')">
+        <Button variant="outline" @click="printWifiQr">
           <Wifi class="w-4 h-4 mr-2" />
           WLAN QR
         </Button>
@@ -145,7 +163,7 @@ onMounted(() => {
         <CardContent>
           <div class="flex items-center gap-2">
             <div 
-              class="w-3 h-3 rounded-full"
+              class="w-3 h-3 rounded-full animate-pulse"
               :class="printerStatus?.reachable ? 'bg-green-500' : 'bg-red-500'"
             />
             <span class="text-sm">
@@ -155,9 +173,6 @@ onMounted(() => {
           <p v-if="printerStatus?.ip" class="text-xs text-muted-foreground mt-1">
             {{ printerStatus.ip }}
           </p>
-          <Button variant="ghost" size="sm" class="mt-2 h-7 text-xs" @click="checkPrinter">
-            Status prüfen
-          </Button>
         </CardContent>
       </Card>
     </div>
