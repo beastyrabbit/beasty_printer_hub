@@ -35,6 +35,7 @@ function getDefaultConfig() {
   return {
     // Donotick connection
     donotickBaseUrl: '',
+    donotickWebUrl: '',  // Public web interface URL (for header link)
     donotickUsername: '',
     donotickPassword: '',
     donotickToken: '',

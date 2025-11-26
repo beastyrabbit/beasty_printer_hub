@@ -10,6 +10,7 @@ const route = useRoute()
 
 const config = ref({
   donotickBaseUrl: '',
+  donotickWebUrl: '',
   donotickUsername: '',
   donotickPassword: '',
   printerIp: '',
@@ -63,6 +64,7 @@ async function loadConfig() {
     const cfg = data.config
     config.value = {
       donotickBaseUrl: cfg.donotickBaseUrl || '',
+      donotickWebUrl: cfg.donotickWebUrl || '',
       donotickUsername: cfg.donotickUsername || '',
       donotickPassword: '',
       printerIp: cfg.printerIp || '',
@@ -254,9 +256,15 @@ onMounted(() => {
         <CardTitle>Donotick Verbindung</CardTitle>
       </CardHeader>
       <CardContent class="space-y-4">
-        <div class="space-y-2">
-          <label class="text-sm font-medium">Server URL</label>
-          <Input v-model="config.donotickBaseUrl" placeholder="http://192.168.50.250:2021" />
+        <div class="grid grid-cols-2 gap-4">
+          <div class="space-y-2">
+            <label class="text-sm font-medium">API URL (intern)</label>
+            <Input v-model="config.donotickBaseUrl" placeholder="http://192.168.1.100:2021" />
+          </div>
+          <div class="space-y-2">
+            <label class="text-sm font-medium">Web URL (öffentlich)</label>
+            <Input v-model="config.donotickWebUrl" placeholder="https://donotick.example.com" />
+          </div>
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div class="space-y-2">

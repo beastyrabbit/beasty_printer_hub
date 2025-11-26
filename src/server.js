@@ -462,7 +462,7 @@ async function handleApi(req, res) {
       
       // Whitelist of allowed config keys
       const allowed = [
-        'donotickBaseUrl', 'donotickUsername', 'donotickPassword', 'donotickToken',
+        'donotickBaseUrl', 'donotickWebUrl', 'donotickUsername', 'donotickPassword', 'donotickToken',
         'printerIp', 'printerPort',
         'dailyPrintTime', 'weeklyPrintTime', 'weeklyPrintDay',
         'trashIcalUrl', 'trashEnable',

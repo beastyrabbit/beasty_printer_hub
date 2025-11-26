@@ -9,7 +9,8 @@ onMounted(async () => {
   try {
     const res = await fetch('/api/config')
     const data = await res.json()
-    donotickUrl.value = data.config?.donotickBaseUrl || ''
+    // Use web URL if set, otherwise fall back to base URL
+    donotickUrl.value = data.config?.donotickWebUrl || data.config?.donotickBaseUrl || ''
   } catch {
     // Ignore - link just won't show
   }
