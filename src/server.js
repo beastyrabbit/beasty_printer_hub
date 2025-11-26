@@ -8,6 +8,8 @@ const { getTrashReminderTasks, markPrinted, loadCreated, saveCreated } = require
 const { printTasks, pingPrinter, printWifiQr } = require('./printer');
 const { createDailyRunner } = require('./scheduler');
 const db = require('./db');
+const { checkOllamaStatus, generateDailySummary, generateWeeklySummary } = require('./ai');
+const { getTodayEvents, getWeekEvents, formatEventsForPrint } = require('./calendar');
 
 const state = {
   lastRunAt: null,
@@ -306,6 +308,38 @@ async function handleApi(req, res) {
     return true;
   }
 
+  // AI status check
+  if (pathname === '/api/ai/status' && req.method === 'GET') {
+    const cfg = config.getAll();
+    const status = await checkOllamaStatus(cfg);
+    sendJson(res, 200, status);
+    return true;
+  }
+
+  // Calendar events for today
+  if (pathname === '/api/calendar/today' && req.method === 'GET') {
+    try {
+      const cfg = config.getAll();
+      const events = await getTodayEvents(cfg);
+      sendJson(res, 200, { events });
+    } catch (err) {
+      sendJson(res, 500, { error: err.message });
+    }
+    return true;
+  }
+
+  // Calendar events for the week
+  if (pathname === '/api/calendar/week' && req.method === 'GET') {
+    try {
+      const cfg = config.getAll();
+      const events = await getWeekEvents(cfg);
+      sendJson(res, 200, { events });
+    } catch (err) {
+      sendJson(res, 500, { error: err.message });
+    }
+    return true;
+  }
+
   if (pathname === '/api/printer/test' && req.method === 'POST') {
     try {
       const body = await readBody(req);
@@ -417,6 +451,8 @@ async function handleApi(req, res) {
         'dailyPrintTime', 'weeklyPrintTime', 'weeklyPrintDay',
         'trashIcalUrl', 'trashEnable',
         'wifiSsid', 'wifiPassword', 'wifiType', 'wifiHidden',
+        'googleCalendarUrl', 'microsoftCalendarEnabled',
+        'ollamaEnabled', 'ollamaUrl', 'ollamaModel', 'aiDailySummary', 'aiWeeklySummary',
         'logLevel'
       ];
       

@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Save, CheckCircle, Wifi, Printer, Signal } from 'lucide-vue-next'
+import { Save, CheckCircle, Wifi, Printer, Signal, Calendar, Bot, RefreshCw } from 'lucide-vue-next'
 
 const config = ref({
   donotickBaseUrl: '',
@@ -17,6 +17,15 @@ const config = ref({
   wifiPassword: '',
   wifiType: 'WPA',
   wifiHidden: false,
+  // Calendar settings
+  googleCalendarUrl: '',
+  microsoftCalendarEnabled: false,
+  // AI settings
+  ollamaEnabled: false,
+  ollamaUrl: 'http://localhost:11434',
+  ollamaModel: 'llama3.2',
+  aiDailySummary: false,
+  aiWeeklySummary: false,
 })
 
 const saving = ref(false)
@@ -28,6 +37,10 @@ const wifiPasswordSet = ref(false)
 const testingConnection = ref(false)
 const connectionStatus = ref<boolean | null>(null)
 const testingPrint = ref(false)
+
+// AI test states
+const testingAi = ref(false)
+const aiStatus = ref<{ available: boolean; models: string[] } | null>(null)
 
 async function loadConfig() {
   try {
@@ -46,6 +59,13 @@ async function loadConfig() {
       wifiPassword: '',
       wifiType: cfg.wifiType || 'WPA',
       wifiHidden: cfg.wifiHidden || false,
+      googleCalendarUrl: cfg.googleCalendarUrl || '',
+      microsoftCalendarEnabled: cfg.microsoftCalendarEnabled || false,
+      ollamaEnabled: cfg.ollamaEnabled || false,
+      ollamaUrl: cfg.ollamaUrl || 'http://localhost:11434',
+      ollamaModel: cfg.ollamaModel || 'llama3.2',
+      aiDailySummary: cfg.aiDailySummary || false,
+      aiWeeklySummary: cfg.aiWeeklySummary || false,
     }
     passwordSet.value = cfg.donotickPassword === '********'
     wifiPasswordSet.value = cfg.wifiPassword === '********'
@@ -104,6 +124,19 @@ async function testPrint() {
     console.error('Test print failed:', err)
   } finally {
     testingPrint.value = false
+  }
+}
+
+async function testAiConnection() {
+  testingAi.value = true
+  aiStatus.value = null
+  try {
+    const res = await fetch('/api/ai/status')
+    aiStatus.value = await res.json()
+  } catch (err) {
+    aiStatus.value = { available: false, models: [] }
+  } finally {
+    testingAi.value = false
   }
 }
 
@@ -183,6 +216,110 @@ onMounted(loadConfig)
       </CardContent>
     </Card>
 
+    <!-- Calendar Settings -->
+    <Card>
+      <CardHeader>
+        <CardTitle class="flex items-center gap-2">
+          <Calendar class="w-5 h-5" />
+          Kalender Integration
+        </CardTitle>
+      </CardHeader>
+      <CardContent class="space-y-4">
+        <p class="text-sm text-muted-foreground">
+          Kalender-Termine können in die Druckausgaben integriert werden.
+        </p>
+        
+        <div class="space-y-2">
+          <label class="text-sm font-medium">Google Kalender URL</label>
+          <Input 
+            v-model="config.googleCalendarUrl" 
+            placeholder="https://calendar.google.com/calendar/embed?src=..." 
+          />
+          <p class="text-xs text-muted-foreground">
+            Embed-URL oder iCal-URL des öffentlichen Kalenders
+          </p>
+        </div>
+
+        <div class="p-3 bg-secondary/50 rounded-lg text-sm">
+          <strong>Microsoft 365 Kalender:</strong><br>
+          <span class="text-muted-foreground">
+            Erfordert Azure AD App-Registrierung. Noch nicht konfiguriert.
+          </span>
+        </div>
+      </CardContent>
+    </Card>
+
+    <!-- AI Settings -->
+    <Card>
+      <CardHeader>
+        <CardTitle class="flex items-center gap-2">
+          <Bot class="w-5 h-5" />
+          KI Zusammenfassungen
+        </CardTitle>
+      </CardHeader>
+      <CardContent class="space-y-4">
+        <p class="text-sm text-muted-foreground">
+          Lokale KI (Ollama) kann automatische Zusammenfassungen generieren.
+        </p>
+        
+        <label class="flex items-center gap-3 cursor-pointer">
+          <input type="checkbox" v-model="config.ollamaEnabled" class="rounded" />
+          <span class="text-sm font-medium">KI aktivieren</span>
+        </label>
+
+        <div v-if="config.ollamaEnabled" class="space-y-4 pl-6 border-l-2 border-primary/20">
+          <div class="space-y-2">
+            <label class="text-sm font-medium">Ollama Server URL</label>
+            <Input v-model="config.ollamaUrl" placeholder="http://localhost:11434" />
+          </div>
+          
+          <div class="space-y-2">
+            <label class="text-sm font-medium">Modell</label>
+            <Input v-model="config.ollamaModel" placeholder="llama3.2" />
+            <p class="text-xs text-muted-foreground">
+              z.B. llama3.2, mistral, gemma2
+            </p>
+          </div>
+
+          <div class="flex gap-2">
+            <Button variant="outline" size="sm" @click="testAiConnection" :disabled="testingAi">
+              <RefreshCw class="w-4 h-4 mr-2" :class="{ 'animate-spin': testingAi }" />
+              Verbindung testen
+            </Button>
+          </div>
+
+          <div v-if="aiStatus" class="p-3 rounded-lg text-sm" :class="aiStatus.available ? 'bg-green-500/10' : 'bg-red-500/10'">
+            <div class="flex items-center gap-2">
+              <div class="w-2 h-2 rounded-full" :class="aiStatus.available ? 'bg-green-500' : 'bg-red-500'" />
+              {{ aiStatus.available ? 'Ollama erreichbar' : 'Ollama nicht erreichbar' }}
+            </div>
+            <div v-if="aiStatus.models?.length" class="mt-1 text-muted-foreground">
+              Modelle: {{ aiStatus.models.join(', ') }}
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <label class="text-sm font-medium">Zusammenfassungen aktivieren:</label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" v-model="config.aiDailySummary" class="rounded" />
+              <span class="text-sm">Tägliche Zusammenfassung</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" v-model="config.aiWeeklySummary" class="rounded" />
+              <span class="text-sm">Wöchentliche Zusammenfassung</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="p-3 bg-secondary/50 rounded-lg text-sm">
+          <strong>Microsoft Copilot:</strong><br>
+          <span class="text-muted-foreground">
+            Hat keine öffentliche API. Alternative: Graph API für Daten + lokale KI für Zusammenfassungen.
+          </span>
+        </div>
+      </CardContent>
+    </Card>
+
     <!-- WLAN QR Settings -->
     <Card>
       <CardHeader>
@@ -212,11 +349,11 @@ onMounted(loadConfig)
             <label class="text-sm font-medium">Verschlüsselung</label>
             <select 
               v-model="config.wifiType"
-              class="w-full h-9 rounded-md border border-input bg-background text-foreground px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              class="w-full h-9 rounded-md border border-input bg-background text-foreground px-3 py-1 text-sm"
             >
-              <option value="WPA" class="bg-background text-foreground">WPA/WPA2/WPA3</option>
-              <option value="WEP" class="bg-background text-foreground">WEP</option>
-              <option value="nopass" class="bg-background text-foreground">Offen</option>
+              <option value="WPA">WPA/WPA2/WPA3</option>
+              <option value="WEP">WEP</option>
+              <option value="nopass">Offen</option>
             </select>
           </div>
         </div>
