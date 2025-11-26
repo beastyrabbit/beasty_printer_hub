@@ -19,7 +19,6 @@ const config = ref({
   wifiHidden: false,
   // Calendar settings
   googleCalendarUrl: '',
-  microsoftCalendarEnabled: false,
   // AI settings
   ollamaEnabled: false,
   ollamaUrl: 'http://localhost:11434',
@@ -60,7 +59,6 @@ async function loadConfig() {
       wifiType: cfg.wifiType || 'WPA',
       wifiHidden: cfg.wifiHidden || false,
       googleCalendarUrl: cfg.googleCalendarUrl || '',
-      microsoftCalendarEnabled: cfg.microsoftCalendarEnabled || false,
       ollamaEnabled: cfg.ollamaEnabled || false,
       ollamaUrl: cfg.ollamaUrl || 'http://localhost:11434',
       ollamaModel: cfg.ollamaModel || 'llama3.2',
@@ -240,12 +238,6 @@ onMounted(loadConfig)
           </p>
         </div>
 
-        <div class="p-3 bg-secondary/50 rounded-lg text-sm">
-          <strong>Microsoft 365 Kalender:</strong><br>
-          <span class="text-muted-foreground">
-            Erfordert Azure AD App-Registrierung. Noch nicht konfiguriert.
-          </span>
-        </div>
       </CardContent>
     </Card>
 
@@ -311,12 +303,6 @@ onMounted(loadConfig)
           </div>
         </div>
 
-        <div class="p-3 bg-secondary/50 rounded-lg text-sm">
-          <strong>Microsoft Copilot:</strong><br>
-          <span class="text-muted-foreground">
-            Hat keine öffentliche API. Alternative: Graph API für Daten + lokale KI für Zusammenfassungen.
-          </span>
-        </div>
       </CardContent>
     </Card>
 

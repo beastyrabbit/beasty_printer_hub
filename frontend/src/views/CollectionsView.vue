@@ -109,10 +109,8 @@ async function saveCollection() {
 async function deleteCollection(id: string) {
   if (!confirm('Sammlung löschen?')) return
   try {
-    await fetch('/api/shopping/collections', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id })
+    await fetch(`/api/shopping/collections/${id}`, {
+      method: 'DELETE'
     })
     await loadData()
   } catch (err) {
