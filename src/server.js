@@ -19,6 +19,11 @@ const state = {
 };
 
 async function syncTrashToDonotick() {
+  // Skip task creation in dev mode to avoid duplicates with production
+  if (config.devMode) {
+    return;
+  }
+  
   const { earliestPerType } = await getTrashReminderTasks();
   const chores = await listAllChores();
   const existingKeys = new Set(chores.map((c) => `${c.title}-${c.due || ''}`));
@@ -469,7 +474,7 @@ async function handleApi(req, res) {
         'wifiSsid', 'wifiPassword', 'wifiType', 'wifiHidden',
         'googleClientId', 'googleClientSecret', 'googleCalendarId',
         'ollamaEnabled', 'ollamaUrl', 'ollamaModel', 'aiDailySummary', 'aiWeeklySummary',
-        'logLevel'
+        'logLevel', 'devMode'
       ];
       
       for (const key of allowed) {
@@ -870,6 +875,12 @@ function serveStatic(req, res) {
  * - On Monday: also prints the weekly summary
  */
 async function runMorningPrint() {
+  // Skip auto-print in dev mode
+  if (config.devMode) {
+    log('info', 'Dev mode: Skipping morning auto-print');
+    return;
+  }
+  
   try {
     const { tasks, trashData } = await gatherTasks('today');
     const now = new Date();
@@ -942,6 +953,11 @@ async function runMorningPrint() {
  * - Prints the weekly summary for NEXT week
  */
 async function runSundayWeeklyPrint() {
+  // Skip auto-print in dev mode
+  if (config.devMode) {
+    return;
+  }
+  
   try {
     // On Sunday, getWeekWindow() returns next week (Monday-Sunday)
     const { tasks } = await gatherTasks('week');

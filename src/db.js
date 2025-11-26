@@ -61,7 +61,10 @@ function getDefaultConfig() {
     
     // Server
     serverPort: 3000,
-    logLevel: 'info'
+    logLevel: 'info',
+    
+    // Development mode - disables task creation and auto-prints
+    devMode: false
   };
 }
 

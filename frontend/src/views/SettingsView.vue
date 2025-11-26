@@ -35,6 +35,8 @@ const config = ref({
   ollamaModel: 'llama3.2',
   aiDailySummary: false,
   aiWeeklySummary: false,
+  // Development
+  devMode: false,
 })
 
 // Google OAuth state
@@ -570,6 +572,25 @@ onMounted(() => {
             <Input v-model="config.weeklyPrintTime" type="time" />
           </div>
         </div>
+      </CardContent>
+    </Card>
+
+    <!-- Development Mode -->
+    <Card>
+      <CardHeader>
+        <CardTitle>Entwicklermodus</CardTitle>
+      </CardHeader>
+      <CardContent class="space-y-4">
+        <label class="flex items-center gap-3 cursor-pointer">
+          <input type="checkbox" v-model="config.devMode" class="rounded" />
+          <div>
+            <span class="text-sm font-medium">Dev Mode aktivieren</span>
+            <p class="text-xs text-muted-foreground">
+              Deaktiviert automatische Müll-Tasks und geplante Drucke. 
+              Nützlich für lokale Entwicklung neben der Produktion.
+            </p>
+          </div>
+        </label>
       </CardContent>
     </Card>
 
