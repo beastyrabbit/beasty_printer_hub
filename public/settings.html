@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Settings - Donotick Printer</title>
+  <title>Settings - Printer Hub</title>
   <link rel="stylesheet" href="/styles.css" />
   <style>
     .settings-section {
@@ -126,7 +126,7 @@
       <div class="logo">⚙️</div>
       <div>
         <h1>Settings</h1>
-        <p class="sub">Configure your Donotick Printer Bridge</p>
+        <p class="sub">Configure your Printer Hub</p>
       </div>
       <a href="/" class="back-link">
         ← Back to Dashboard
@@ -388,8 +388,22 @@
         
         fields.donotickBaseUrl.value = cfg.donotickBaseUrl || '';
         fields.donotickUsername.value = cfg.donotickUsername || '';
-        fields.donotickPassword.value = cfg.donotickPassword || '';
-        fields.donotickToken.value = cfg.donotickToken || '';
+        
+        // Password fields: show empty with placeholder if password is set (API returns ********)
+        if (cfg.donotickPassword === '********') {
+          fields.donotickPassword.value = '';
+          fields.donotickPassword.placeholder = '••••••• (gespeichert - leer lassen um beizubehalten)';
+        } else {
+          fields.donotickPassword.value = cfg.donotickPassword || '';
+          fields.donotickPassword.placeholder = 'your-password';
+        }
+        
+        if (cfg.donotickToken === '********') {
+          fields.donotickToken.value = '';
+          fields.donotickToken.placeholder = '••••••• (gespeichert)';
+        } else {
+          fields.donotickToken.value = cfg.donotickToken || '';
+        }
         fields.printerIp.value = cfg.printerIp || '';
         fields.printerPort.value = cfg.printerPort || 9100;
         fields.dailyPrintTime.value = cfg.dailyPrintTime || '08:00';
@@ -431,8 +445,17 @@
         const updates = {
           donotickBaseUrl: fields.donotickBaseUrl.value.trim(),
           donotickUsername: fields.donotickUsername.value.trim(),
-          donotickPassword: fields.donotickPassword.value,
-          donotickToken: fields.donotickToken.value,
+        };
+        
+        // Only send password if user entered a new one (not empty)
+        if (fields.donotickPassword.value) {
+          updates.donotickPassword = fields.donotickPassword.value;
+        }
+        if (fields.donotickToken.value) {
+          updates.donotickToken = fields.donotickToken.value;
+        }
+        
+        Object.assign(updates, {
           printerIp: fields.printerIp.value.trim(),
           printerPort: Number(fields.printerPort.value) || 9100,
           dailyPrintTime: fields.dailyPrintTime.value || '08:00',
@@ -440,7 +463,7 @@
           weeklyPrintDay: Number(fields.weeklyPrintDay.value),
           trashIcalUrl: fields.trashIcalUrl.value.trim(),
           trashEnable: trashEnabled
-        };
+        });
         
         await fetchJson('/api/config', {
           method: 'POST',
