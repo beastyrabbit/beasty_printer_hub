@@ -146,20 +146,21 @@ async function checkAllConnections() {
     trash.loading = false
   }
 
-  // Check Family calendar
+  // Check Family calendar (Google Calendar OAuth)
   const family = connections.value.find(c => c.name === 'Familien-Kalender')
   if (family) {
     try {
       const configRes = await fetch('/api/config')
       const configData = await configRes.json()
-      if (configData.config?.googleCalendarUrl) {
+      // Check if Google Calendar is connected via OAuth
+      if (configData.config?.googleConnected) {
         family.connected = true
         family.detail = familyEvents.value.length > 0 
           ? `${familyEvents.value.length} diese Woche` 
           : 'Keine diese Woche'
       } else {
         family.connected = false
-        family.detail = 'Nicht konfiguriert'
+        family.detail = 'Nicht verbunden'
       }
     } catch {
       family.connected = false
