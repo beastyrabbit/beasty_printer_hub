@@ -363,78 +363,6 @@ onUnmounted(() => {
       </Card>
     </div>
 
-    <!-- Calendar Boxes -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Trash Calendar -->
-      <Card>
-        <CardHeader>
-          <CardTitle class="flex items-center gap-2">
-            <Trash2 class="w-5 h-5" />
-            Müllabfuhr
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div v-if="trashEvents.length === 0" class="text-center py-6 text-muted-foreground">
-            Keine kommenden Abholtermine
-          </div>
-          <ul v-else class="space-y-2">
-            <li
-              v-for="event in trashEvents"
-              :key="event.type"
-              class="flex items-center justify-between p-3 rounded-lg bg-secondary/50"
-            >
-              <div class="flex items-center gap-3">
-                <div class="w-3 h-3 rounded-full" :class="getTrashColor(event.type)" />
-                <span class="font-medium">{{ event.label }}</span>
-              </div>
-              <span class="text-sm text-muted-foreground">{{ formatDate(event.date) }}</span>
-            </li>
-          </ul>
-        </CardContent>
-      </Card>
-
-      <!-- Family Calendar -->
-      <Card>
-        <CardHeader>
-          <div class="flex items-center justify-between">
-            <CardTitle class="flex items-center gap-2">
-              <CalendarDays class="w-5 h-5" />
-              Familien-Kalender
-            </CardTitle>
-            <a 
-              href="https://calendar.google.com/calendar" 
-              target="_blank"
-              class="text-muted-foreground hover:text-foreground transition-colors"
-              title="In Google Kalender öffnen"
-            >
-              <ExternalLink class="w-4 h-4" />
-            </a>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div v-if="familyEvents.length === 0" class="text-center py-6 text-muted-foreground">
-            Keine Termine diese Woche
-          </div>
-          <ul v-else class="space-y-2 max-h-64 overflow-y-auto">
-            <li
-              v-for="(event, idx) in familyEvents"
-              :key="idx"
-              class="flex items-center justify-between p-3 rounded-lg bg-secondary/50"
-            >
-              <div class="flex-1">
-                <div class="font-medium">{{ event.summary }}</div>
-                <div v-if="event.location" class="text-xs text-muted-foreground">{{ event.location }}</div>
-              </div>
-              <div class="text-right text-sm">
-                <div class="text-muted-foreground">{{ formatDate(event.start) }}</div>
-                <div v-if="!event.allDay" class="text-xs">{{ formatTime(event.start) }}</div>
-              </div>
-            </li>
-          </ul>
-        </CardContent>
-      </Card>
-    </div>
-
     <!-- Tasks Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Today's Tasks -->
@@ -519,6 +447,78 @@ onUnmounted(() => {
                     </span>
                   </div>
                 </div>
+              </div>
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
+    </div>
+
+    <!-- Calendar Boxes -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Trash Calendar -->
+      <Card>
+        <CardHeader>
+          <CardTitle class="flex items-center gap-2">
+            <Trash2 class="w-5 h-5" />
+            Müllabfuhr
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div v-if="trashEvents.length === 0" class="text-center py-6 text-muted-foreground">
+            Keine kommenden Abholtermine
+          </div>
+          <ul v-else class="space-y-2">
+            <li
+              v-for="event in trashEvents"
+              :key="event.type"
+              class="flex items-center justify-between p-3 rounded-lg bg-secondary/50"
+            >
+              <div class="flex items-center gap-3">
+                <div class="w-3 h-3 rounded-full" :class="getTrashColor(event.type)" />
+                <span class="font-medium">{{ event.label }}</span>
+              </div>
+              <span class="text-sm text-muted-foreground">{{ formatDate(event.date) }}</span>
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
+
+      <!-- Family Calendar -->
+      <Card>
+        <CardHeader>
+          <div class="flex items-center justify-between">
+            <CardTitle class="flex items-center gap-2">
+              <CalendarDays class="w-5 h-5" />
+              Familien-Kalender
+            </CardTitle>
+            <a 
+              href="https://calendar.google.com/calendar" 
+              target="_blank"
+              class="text-muted-foreground hover:text-foreground transition-colors"
+              title="In Google Kalender öffnen"
+            >
+              <ExternalLink class="w-4 h-4" />
+            </a>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div v-if="familyEvents.length === 0" class="text-center py-6 text-muted-foreground">
+            Keine Termine diese Woche
+          </div>
+          <ul v-else class="space-y-2 max-h-64 overflow-y-auto">
+            <li
+              v-for="(event, idx) in familyEvents"
+              :key="idx"
+              class="flex items-center justify-between p-3 rounded-lg bg-secondary/50"
+            >
+              <div class="flex-1">
+                <div class="font-medium">{{ event.summary }}</div>
+                <div v-if="event.location" class="text-xs text-muted-foreground">{{ event.location }}</div>
+              </div>
+              <div class="text-right text-sm">
+                <div class="text-muted-foreground">{{ formatDate(event.start) }}</div>
+                <div v-if="!event.allDay" class="text-xs">{{ formatTime(event.start) }}</div>
               </div>
             </li>
           </ul>
