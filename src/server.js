@@ -5,7 +5,7 @@ const url = require('url');
 const config = require('./config');
 const { fetchTasks, createTask, completeTask, listAllChores } = require('./donotick');
 const { getTrashReminderTasks, markPrinted, loadCreated, saveCreated } = require('./trash');
-const { printTasks, pingPrinter } = require('./printer');
+const { printTasks, pingPrinter, printWifiQr } = require('./printer');
 const { createDailyRunner } = require('./scheduler');
 const db = require('./db');
 
@@ -324,6 +324,35 @@ async function handleApi(req, res) {
     return true;
   }
 
+  // Print WiFi QR code
+  if (pathname === '/api/print/wifi' && req.method === 'POST') {
+    try {
+      const body = await readBody(req);
+      const { ssid, password, type, hidden } = body;
+      
+      if (!ssid) {
+        sendJson(res, 400, { error: 'SSID is required' });
+        return true;
+      }
+      
+      await printWifiQr({
+        host: config.printerIp,
+        port: config.printerPort,
+        ssid,
+        password,
+        type: type || 'WPA',
+        hidden: !!hidden
+      });
+      
+      log('info', `Printed WiFi QR code for "${ssid}"`);
+      sendJson(res, 200, { status: 'printed', ssid });
+    } catch (err) {
+      log('error', 'WiFi QR print failed', err.message);
+      sendJson(res, 500, { error: err.message });
+    }
+    return true;
+  }
+
   if (pathname === '/api/trash/sync' && req.method === 'POST') {
     try {
       await syncTrashToDonotick();
@@ -402,6 +431,230 @@ async function handleApi(req, res) {
       
       sendJson(res, 200, { status: 'updated', keys: Object.keys(updates) });
     } catch (err) {
+      sendJson(res, 500, { error: err.message });
+    }
+    return true;
+  }
+
+  // ============ Shopping List API ============
+
+  // Get all storage items (sorted by usage)
+  if (pathname === '/api/shopping/items' && req.method === 'GET') {
+    const query = parsed.query.q || '';
+    const items = query ? db.searchShoppingItems(query) : db.getShoppingItems();
+    sendJson(res, 200, { items, units: db.UNIT_TYPES });
+    return true;
+  }
+
+  // Add new item to storage
+  if (pathname === '/api/shopping/items' && req.method === 'POST') {
+    try {
+      const body = await readBody(req);
+      if (!body.name) {
+        sendJson(res, 400, { error: 'name is required' });
+        return true;
+      }
+      // Check if item already exists
+      const existing = db.findShoppingItemByName(body.name);
+      if (existing) {
+        sendJson(res, 200, { item: existing, existed: true });
+        return true;
+      }
+      const item = db.addShoppingItem(body.name, body.unit || 'st');
+      sendJson(res, 200, { item, created: true });
+    } catch (err) {
+      sendJson(res, 500, { error: err.message });
+    }
+    return true;
+  }
+
+  // Update an item
+  if (pathname.match(/^\/api\/shopping\/items\/[^/]+$/) && req.method === 'PATCH') {
+    try {
+      const id = pathname.split('/')[4];
+      const body = await readBody(req);
+      const item = db.updateShoppingItem(id, body);
+      if (!item) {
+        sendJson(res, 404, { error: 'Item not found' });
+        return true;
+      }
+      sendJson(res, 200, { item });
+    } catch (err) {
+      sendJson(res, 500, { error: err.message });
+    }
+    return true;
+  }
+
+  // Delete an item
+  if (pathname.match(/^\/api\/shopping\/items\/[^/]+$/) && req.method === 'DELETE') {
+    const id = pathname.split('/')[4];
+    db.deleteShoppingItem(id);
+    sendJson(res, 200, { status: 'deleted' });
+    return true;
+  }
+
+  // Get current shopping list
+  if (pathname === '/api/shopping/list' && req.method === 'GET') {
+    sendJson(res, 200, { list: db.getShoppingList() });
+    return true;
+  }
+
+  // Add item to shopping list
+  if (pathname === '/api/shopping/list' && req.method === 'POST') {
+    try {
+      const body = await readBody(req);
+      if (!body.itemId) {
+        sendJson(res, 400, { error: 'itemId is required' });
+        return true;
+      }
+      const list = db.addToShoppingList(body.itemId, body.quantity || 1);
+      sendJson(res, 200, { list });
+    } catch (err) {
+      sendJson(res, 500, { error: err.message });
+    }
+    return true;
+  }
+
+  // Update quantity in shopping list
+  if (pathname.match(/^\/api\/shopping\/list\/[^/]+$/) && req.method === 'PATCH') {
+    try {
+      const itemId = pathname.split('/')[4];
+      const body = await readBody(req);
+      const list = db.updateShoppingListQuantity(itemId, body.quantity);
+      sendJson(res, 200, { list });
+    } catch (err) {
+      sendJson(res, 500, { error: err.message });
+    }
+    return true;
+  }
+
+  // Remove item from shopping list
+  if (pathname.match(/^\/api\/shopping\/list\/[^/]+$/) && req.method === 'DELETE') {
+    const itemId = pathname.split('/')[4];
+    const list = db.removeFromShoppingList(itemId);
+    sendJson(res, 200, { list });
+    return true;
+  }
+
+  // Reset shopping list (clear and re-add "always" items)
+  if (pathname === '/api/shopping/list/reset' && req.method === 'POST') {
+    const list = db.resetShoppingList();
+    sendJson(res, 200, { list });
+    return true;
+  }
+
+  // Get all collections
+  if (pathname === '/api/shopping/collections' && req.method === 'GET') {
+    sendJson(res, 200, { collections: db.getCollections() });
+    return true;
+  }
+
+  // Get single collection with item details
+  if (pathname.match(/^\/api\/shopping\/collections\/[^/]+$/) && req.method === 'GET') {
+    const id = pathname.split('/')[4];
+    const collection = db.getCollection(id);
+    if (!collection) {
+      sendJson(res, 404, { error: 'Collection not found' });
+      return true;
+    }
+    sendJson(res, 200, { collection });
+    return true;
+  }
+
+  // Create new collection
+  if (pathname === '/api/shopping/collections' && req.method === 'POST') {
+    try {
+      const body = await readBody(req);
+      if (!body.name) {
+        sendJson(res, 400, { error: 'name is required' });
+        return true;
+      }
+      const collection = db.createCollection(body.name, body.items || []);
+      sendJson(res, 200, { collection });
+    } catch (err) {
+      sendJson(res, 500, { error: err.message });
+    }
+    return true;
+  }
+
+  // Update collection
+  if (pathname.match(/^\/api\/shopping\/collections\/[^/]+$/) && req.method === 'PATCH') {
+    try {
+      const id = pathname.split('/')[4];
+      const body = await readBody(req);
+      const collection = db.updateCollection(id, body);
+      if (!collection) {
+        sendJson(res, 404, { error: 'Collection not found' });
+        return true;
+      }
+      sendJson(res, 200, { collection });
+    } catch (err) {
+      sendJson(res, 500, { error: err.message });
+    }
+    return true;
+  }
+
+  // Delete collection
+  if (pathname.match(/^\/api\/shopping\/collections\/[^/]+$/) && req.method === 'DELETE') {
+    const id = pathname.split('/')[4];
+    db.deleteCollection(id);
+    sendJson(res, 200, { status: 'deleted' });
+    return true;
+  }
+
+  // Apply collection to shopping list
+  if (pathname.match(/^\/api\/shopping\/collections\/[^/]+\/apply$/) && req.method === 'POST') {
+    const id = pathname.split('/')[4];
+    const list = db.applyCollection(id);
+    if (!list) {
+      sendJson(res, 404, { error: 'Collection not found' });
+      return true;
+    }
+    sendJson(res, 200, { list });
+    return true;
+  }
+
+  // Save current list as collection
+  if (pathname === '/api/shopping/list/save-as-collection' && req.method === 'POST') {
+    try {
+      const body = await readBody(req);
+      if (!body.name) {
+        sendJson(res, 400, { error: 'name is required' });
+        return true;
+      }
+      const collection = db.saveListAsCollection(body.name);
+      sendJson(res, 200, { collection });
+    } catch (err) {
+      sendJson(res, 500, { error: err.message });
+    }
+    return true;
+  }
+
+  // Print shopping list
+  if (pathname === '/api/shopping/print' && req.method === 'POST') {
+    try {
+      const body = await readBody(req);
+      const list = db.getShoppingList();
+      if (!list.length) {
+        sendJson(res, 200, { status: 'empty' });
+        return true;
+      }
+      const printerHost = body.printerIp || config.printerIp;
+      // Format items for printing
+      const items = list.map(entry => ({
+        title: `${db.formatQuantity(entry.quantity, entry.item.unit)} ${entry.item.name}`,
+        labels: []
+      }));
+      await printTasks({
+        host: printerHost,
+        port: body.printerPort || config.printerPort,
+        tasks: items,
+        mode: 'daily',
+        headerTitle: 'EINKAUFSLISTE'
+      });
+      sendJson(res, 200, { status: 'printed', count: list.length });
+    } catch (err) {
+      log('error', 'Shopping list print failed', err.message);
       sendJson(res, 500, { error: err.message });
     }
     return true;
