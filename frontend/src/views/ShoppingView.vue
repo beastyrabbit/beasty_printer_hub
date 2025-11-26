@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Plus, Printer, Copy, RotateCcw, Save, Pencil, X } from 'lucide-vue-next'
+import { Plus, Printer, Copy, RotateCcw, FolderPlus, X, Folder } from 'lucide-vue-next'
+
+const router = useRouter()
 
 interface ShoppingItem {
   id: string
@@ -19,8 +22,15 @@ interface ListItem {
   quantity: number
 }
 
+interface Collection {
+  id: string
+  name: string
+  items: { itemId: string; quantity: number }[]
+}
+
 const items = ref<ShoppingItem[]>([])
 const list = ref<ListItem[]>([])
+const collections = ref<Collection[]>([])
 const searchQuery = ref('')
 const loading = ref(false)
 
@@ -40,14 +50,17 @@ const listWithItems = computed(() => {
 async function loadData() {
   loading.value = true
   try {
-    const [itemsRes, listRes] = await Promise.all([
+    const [itemsRes, listRes, collectionsRes] = await Promise.all([
       fetch('/api/shopping/items'),
-      fetch('/api/shopping/list')
+      fetch('/api/shopping/list'),
+      fetch('/api/shopping/collections')
     ])
     const itemsData = await itemsRes.json()
     const listData = await listRes.json()
+    const collectionsData = await collectionsRes.json()
     items.value = itemsData.items || []
     list.value = listData.list || []
+    collections.value = collectionsData.collections || []
   } catch (err) {
     console.error('Failed to load:', err)
   } finally {
@@ -70,7 +83,11 @@ async function addToList(itemId: string) {
 
 async function removeFromList(itemId: string) {
   try {
-    await fetch(`/api/shopping/list?itemId=${itemId}`, { method: 'DELETE' })
+    await fetch('/api/shopping/list', { 
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ itemId })
+    })
     await loadData()
   } catch (err) {
     console.error('Failed to remove:', err)
@@ -106,6 +123,17 @@ async function createItem(name: string) {
     }
   } catch (err) {
     console.error('Failed to create:', err)
+  }
+}
+
+async function applyCollection(collectionId: string) {
+  try {
+    await fetch(`/api/shopping/collections/${collectionId}/apply`, {
+      method: 'POST'
+    })
+    await loadData()
+  } catch (err) {
+    console.error('Failed to apply collection:', err)
   }
 }
 
@@ -167,9 +195,15 @@ onMounted(loadData)
 <template>
   <div class="space-y-6">
     <!-- Page Header -->
-    <div>
-      <h1 class="text-2xl font-bold">Einkaufsliste</h1>
-      <p class="text-muted-foreground">Drag & Drop zum Hinzufügen</p>
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold">Einkaufsliste</h1>
+        <p class="text-muted-foreground">Klicken um hinzuzufügen</p>
+      </div>
+      <Button variant="outline" @click="router.push('/collections')">
+        <FolderPlus class="w-4 h-4 mr-2" />
+        Sammlungen
+      </Button>
     </div>
 
     <!-- Two Column Layout -->
@@ -197,8 +231,30 @@ onMounted(loadData)
             </p>
           </div>
 
+          <!-- Collections Section -->
+          <div v-if="collections.length > 0" class="space-y-2">
+            <h3 class="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Sammlungen</h3>
+            <div
+              v-for="collection in collections"
+              :key="collection.id"
+              class="flex items-center justify-between p-3 rounded-lg bg-primary/5 border border-primary/20 hover:bg-primary/10 transition-colors cursor-pointer"
+              @click="applyCollection(collection.id)"
+            >
+              <div class="flex items-center gap-2">
+                <Folder class="w-4 h-4 text-primary" />
+                <span class="font-medium">{{ collection.name }}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-sm text-muted-foreground">{{ collection.items.length }} Items</span>
+                <Button variant="ghost" size="icon" class="h-8 w-8">
+                  <Plus class="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+
           <!-- Items List -->
-          <div class="space-y-2 max-h-96 overflow-y-auto">
+          <div class="space-y-2 max-h-80 overflow-y-auto">
             <div
               v-for="item in filteredItems"
               :key="item.id"
@@ -211,7 +267,7 @@ onMounted(loadData)
               </div>
               <div class="flex items-center gap-2">
                 <span class="text-sm text-muted-foreground">{{ getUnitShort(item.unit) }}</span>
-                <Button variant="ghost" size="icon" class="h-8 w-8">
+                <Button variant="ghost" size="icon" class="h-8 w-8" @click.stop="addToList(item.id)">
                   <Plus class="w-4 h-4" />
                 </Button>
               </div>
@@ -247,8 +303,8 @@ onMounted(loadData)
                   class="w-16 h-8 rounded border border-input bg-transparent px-2 text-center text-sm"
                   @change="(e) => updateQuantity(item.itemId, parseInt((e.target as HTMLInputElement).value) || 1)"
                 />
-                <span class="text-sm text-muted-foreground">{{ getUnitShort(item.item?.unit || 'st') }}</span>
-                <Button variant="ghost" size="icon" class="h-8 w-8" @click="removeFromList(item.itemId)">
+                <span class="text-sm text-muted-foreground w-10">{{ getUnitShort(item.item?.unit || 'st') }}</span>
+                <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive hover:text-destructive" @click="removeFromList(item.itemId)">
                   <X class="w-4 h-4" />
                 </Button>
               </div>
@@ -261,21 +317,17 @@ onMounted(loadData)
 
           <!-- Action Buttons -->
           <div class="grid grid-cols-2 gap-2">
-            <Button @click="printList">
+            <Button @click="printList" :disabled="list.length === 0">
               <Printer class="w-4 h-4 mr-2" />
               Drucken
             </Button>
-            <Button variant="outline" @click="copyList">
+            <Button variant="outline" @click="copyList" :disabled="list.length === 0">
               <Copy class="w-4 h-4 mr-2" />
               Kopieren
             </Button>
-            <Button variant="outline" @click="resetList">
+            <Button variant="outline" @click="resetList" class="col-span-2">
               <RotateCcw class="w-4 h-4 mr-2" />
               Reset
-            </Button>
-            <Button variant="outline">
-              <Save class="w-4 h-4 mr-2" />
-              Sammlung
             </Button>
           </div>
         </CardContent>
@@ -283,4 +335,3 @@ onMounted(loadData)
     </div>
   </div>
 </template>
-

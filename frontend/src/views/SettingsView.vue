@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Save, CheckCircle } from 'lucide-vue-next'
+import { Save, CheckCircle, Wifi, WifiOff, Printer } from 'lucide-vue-next'
 
 const config = ref({
   donotickBaseUrl: '',
@@ -18,6 +18,11 @@ const config = ref({
 const saving = ref(false)
 const saved = ref(false)
 const passwordSet = ref(false)
+
+// Printer test states
+const testingConnection = ref(false)
+const connectionResult = ref<{ reachable: boolean; error?: string } | null>(null)
+const testingPrint = ref(false)
 
 async function loadConfig() {
   try {
@@ -61,6 +66,30 @@ async function saveConfig() {
     console.error('Failed to save:', err)
   } finally {
     saving.value = false
+  }
+}
+
+async function testConnection() {
+  testingConnection.value = true
+  connectionResult.value = null
+  try {
+    const res = await fetch('/api/printer/status')
+    connectionResult.value = await res.json()
+  } catch (err) {
+    connectionResult.value = { reachable: false, error: 'Fehler bei der Verbindung' }
+  } finally {
+    testingConnection.value = false
+  }
+}
+
+async function testPrint() {
+  testingPrint.value = true
+  try {
+    await fetch('/api/printer/test', { method: 'POST' })
+  } catch (err) {
+    console.error('Test print failed:', err)
+  } finally {
+    testingPrint.value = false
   }
 }
 
@@ -118,6 +147,29 @@ onMounted(loadConfig)
             <Input v-model="config.printerPort" type="number" />
           </div>
         </div>
+
+        <!-- Test Buttons -->
+        <div class="flex items-center gap-4 pt-2">
+          <Button variant="outline" @click="testConnection" :disabled="testingConnection">
+            <template v-if="testingConnection">
+              Teste...
+            </template>
+            <template v-else-if="connectionResult">
+              <Wifi v-if="connectionResult.reachable" class="w-4 h-4 mr-2 text-green-500" />
+              <WifiOff v-else class="w-4 h-4 mr-2 text-red-500" />
+              {{ connectionResult.reachable ? 'Verbunden' : 'Nicht erreichbar' }}
+            </template>
+            <template v-else>
+              <Wifi class="w-4 h-4 mr-2" />
+              Verbindung testen
+            </template>
+          </Button>
+          
+          <Button variant="outline" @click="testPrint" :disabled="testingPrint">
+            <Printer class="w-4 h-4 mr-2" />
+            {{ testingPrint ? 'Druckt...' : 'Testseite drucken' }}
+          </Button>
+        </div>
       </CardContent>
     </Card>
 
@@ -150,4 +202,3 @@ onMounted(loadConfig)
     </div>
   </div>
 </template>
-
