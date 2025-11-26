@@ -7,6 +7,7 @@ function parseIcs(icsText) {
   parts.forEach((chunk) => {
     const lines = chunk.split(/\r?\n/);
     let dtStart = null;
+    let dtStartStr = ''; // Store the raw date string (YYYYMMDD or YYYY-MM-DD)
     let summary = '';
     let uid = '';
     lines.forEach((line) => {
@@ -14,10 +15,13 @@ function parseIcs(icsText) {
         const match = line.match(/:(\d{8})/);
         if (match) {
           const d = match[1];
+          // Store as YYYY-MM-DD string for consistent display
+          dtStartStr = `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
+          // Create date at noon local time to avoid timezone issues
           const y = Number(d.slice(0, 4));
           const m = Number(d.slice(4, 6)) - 1;
           const day = Number(d.slice(6, 8));
-          dtStart = new Date(Date.UTC(y, m, day));
+          dtStart = new Date(y, m, day, 12, 0, 0);
         }
       }
       if (line.startsWith('SUMMARY')) {
@@ -30,7 +34,12 @@ function parseIcs(icsText) {
       }
     });
     if (dtStart && summary) {
-      events.push({ uid: uid || `${summary}-${dtStart.toISOString().slice(0, 10)}`, date: dtStart, summary });
+      events.push({ 
+        uid: uid || `${summary}-${dtStartStr}`, 
+        date: dtStart, 
+        dateStr: dtStartStr, // Include the string for display
+        summary 
+      });
     }
   });
   return events;
@@ -59,23 +68,24 @@ function sameDay(d1, d2) {
   return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
 }
 
-function toLocal(date) {
-  return new Date(date.getTime() + date.getTimezoneOffset() * 60000);
-}
-
 async function getTrashReminderTasks(referenceDate = new Date()) {
   const events = await fetchTrashEvents();
   const printed = db.getTrashPrinted();
   const reminders = [];
-  const today = toLocal(referenceDate);
+  // Use start of today for comparison
+  const today = new Date(referenceDate);
+  today.setHours(0, 0, 0, 0);
   const todayIso = today.toISOString().slice(0, 10);
 
+  // Filter out biotonne since user doesn't track it
   const filteredEvents = events.filter((ev) => ev.summary && !/bio/i.test(ev.summary));
 
   filteredEvents.forEach((ev) => {
-    const pickupLocal = toLocal(ev.date);
-    const reminderDate = new Date(pickupLocal);
+    // ev.date is already local time (created with new Date(y, m, day, 12, 0, 0))
+    const pickupDate = ev.date;
+    const reminderDate = new Date(pickupDate);
     reminderDate.setDate(reminderDate.getDate() - 1);
+    reminderDate.setHours(0, 0, 0, 0);
 
     if (reminderDate < today) return; // only upcoming
 
@@ -83,7 +93,8 @@ async function getTrashReminderTasks(referenceDate = new Date()) {
       uid: ev.uid,
       type: ev.summary,
       reminderDate,
-      pickupDate: pickupLocal
+      pickupDate,
+      pickupDateStr: ev.dateStr // Include the string for frontend display
     });
   });
 
