@@ -36,19 +36,17 @@ cd frontend && bun install && cd ..
 # Build frontend
 cd frontend && bun run build && cd ..
 
-# Copy and configure environment
-cp .env.example .env
-# Edit .env with your settings
-
 # Start the server
 bun run start
 ```
 
-Open http://localhost:3000 in your browser.
+Open http://localhost:3000 in your browser and configure everything in **Settings**.
 
 ## Configuration
 
-All configuration is managed through the web UI under **Settings**. Initial values can be set via environment variables:
+All configuration is managed through the web UI under **Settings**. No config files needed!
+
+Optionally, you can set initial values via environment variables (`.env` file) - they will be migrated to the database on first run:
 
 | Setting | Description |
 |---------|-------------|
