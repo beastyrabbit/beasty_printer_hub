@@ -2,10 +2,6 @@
 node_modules/
 frontend/node_modules/
 
-# Lock files (use install without lockfile)
-bun.lock
-frontend/bun.lock
-
 # Git
 .git
 .gitignore
