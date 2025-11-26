@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckSquare, Calendar, Printer, Wifi, Trash2, CalendarDays, Link2, Bot } from 'lucide-vue-next'
+import { CheckSquare, Calendar, Printer, Wifi, Trash2, CalendarDays, Link2, Bot, ExternalLink } from 'lucide-vue-next'
 
 interface Task {
   id: string | number
@@ -95,13 +95,16 @@ async function loadTrashCalendar() {
   try {
     const res = await fetch('/api/trash/preview')
     const data = await res.json()
-    // upcoming is an array of events with type, pickupDate, reminderDate
+    // upcoming is an array of events with type, pickupDate, pickupDateStr, reminderDate
     const upcoming = data.upcoming || []
     trashEvents.value = upcoming.map((event: any) => ({
       type: event.type,
-      date: event.pickupDate,
+      date: event.pickupDateStr || event.pickupDate, // Use the string version if available
       label: event.type
-    })).sort((a: TrashEvent, b: TrashEvent) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    })).sort((a: TrashEvent, b: TrashEvent) => {
+      // Sort by date string (YYYY-MM-DD format sorts correctly)
+      return a.date.localeCompare(b.date)
+    })
   } catch (err) {
     console.error('Failed to load trash calendar:', err)
   }
@@ -223,13 +226,32 @@ async function printWifiQr() {
 }
 
 function formatDate(dateStr: string): string {
-  const date = new Date(dateStr)
+  // Handle YYYY-MM-DD format by parsing as local date at noon to avoid timezone issues
+  let date: Date
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const parts = dateStr.split('-')
+    const y = parseInt(parts[0] || '0', 10)
+    const m = parseInt(parts[1] || '1', 10) - 1
+    const d = parseInt(parts[2] || '1', 10)
+    date = new Date(y, m, d, 12, 0, 0)
+  } else {
+    date = new Date(dateStr)
+  }
   return date.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
 function formatTime(dateStr: string): string {
   const date = new Date(dateStr)
   return date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+}
+
+function getTrashColor(type: string): string {
+  const t = type.toLowerCase()
+  if (t.includes('rest') || t.includes('schwarz')) return 'bg-gray-600'
+  if (t.includes('gelb')) return 'bg-yellow-500'
+  if (t.includes('papier') || t.includes('blau')) return 'bg-green-600' // Papier = green per user request
+  if (t.includes('glas')) return 'bg-blue-500' // Glas = blue
+  return 'bg-gray-400' // fallback
 }
 
 async function refreshAll() {
@@ -362,13 +384,7 @@ onUnmounted(() => {
               class="flex items-center justify-between p-3 rounded-lg bg-secondary/50"
             >
               <div class="flex items-center gap-3">
-                <div class="w-3 h-3 rounded-full" :class="{
-                  'bg-gray-600': event.type.toLowerCase().includes('rest') || event.type.toLowerCase().includes('schwarz'),
-                  'bg-yellow-500': event.type.toLowerCase().includes('gelb'),
-                  'bg-blue-500': event.type.toLowerCase().includes('papier') || event.type.toLowerCase().includes('blau'),
-                  'bg-green-600': event.type.toLowerCase().includes('bio') || event.type.toLowerCase().includes('grün'),
-                  'bg-amber-700': event.type.toLowerCase().includes('braun'),
-                }" />
+                <div class="w-3 h-3 rounded-full" :class="getTrashColor(event.type)" />
                 <span class="font-medium">{{ event.label }}</span>
               </div>
               <span class="text-sm text-muted-foreground">{{ formatDate(event.date) }}</span>
@@ -380,10 +396,20 @@ onUnmounted(() => {
       <!-- Family Calendar -->
       <Card>
         <CardHeader>
-          <CardTitle class="flex items-center gap-2">
-            <CalendarDays class="w-5 h-5" />
-            Familien-Kalender
-          </CardTitle>
+          <div class="flex items-center justify-between">
+            <CardTitle class="flex items-center gap-2">
+              <CalendarDays class="w-5 h-5" />
+              Familien-Kalender
+            </CardTitle>
+            <a 
+              href="https://calendar.google.com/calendar" 
+              target="_blank"
+              class="text-muted-foreground hover:text-foreground transition-colors"
+              title="In Google Kalender öffnen"
+            >
+              <ExternalLink class="w-4 h-4" />
+            </a>
+          </div>
         </CardHeader>
         <CardContent>
           <div v-if="familyEvents.length === 0" class="text-center py-6 text-muted-foreground">
