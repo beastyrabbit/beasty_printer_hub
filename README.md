@@ -1,165 +1,174 @@
-# Donotick Printer Bridge
+# Printer Hub
 
-Minimal Node service that pulls tasks from Donotick and prints them to an Epson thermal printer. A dashboard lets you verify tasks, check printer reachability, and trigger prints. Automatic printing runs at configured times.
+A personal productivity dashboard that connects to [Donotick](https://donotick.com) task manager, Google Calendar, trash collection schedules, and an ESC/POS thermal printer. Built with Node.js backend and Vue 3 frontend.
 
-## Quick start
+![Dashboard Screenshot](docs/screenshot.png)
 
-1. Ensure Bun or Node 18+ is available.
-2. Copy `.env.example` to `.env` and set your values (credentials, printer IP, Donotick base URL, etc.).
-3. Start the server:
+## Features
+
+- **Task Management**: View and print today's and this week's tasks from Donotick
+- **Shopping List**: Manage items, collections, and print shopping lists
+- **Google Calendar Integration**: OAuth 2.0 connection to view private calendar events
+- **Trash Calendar**: iCal integration for waste collection reminders
+- **Thermal Printing**: Print tasks, summaries, shopping lists, and WiFi QR codes
+- **Automatic Scheduling**: Daily morning prints and weekly summaries
+- **Modern UI**: Dark theme Vue 3 dashboard with Tailwind CSS
+
+## Quick Start
+
+### Prerequisites
+
+- [Bun](https://bun.sh/) or Node.js 18+
+- ESC/POS compatible thermal printer (network connected)
+- Donotick instance (optional)
+
+### Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/yourusername/printer-hub.git
+cd printer-hub
+
+# Install dependencies
+bun install
+cd frontend && bun install && cd ..
+
+# Build frontend
+cd frontend && bun run build && cd ..
+
+# Copy and configure environment
+cp .env.example .env
+# Edit .env with your settings
+
+# Start the server
 bun run start
-# or
-node src/server.js
 ```
 
-4. Open the dashboard: http://localhost:3000
+Open http://localhost:3000 in your browser.
 
 ## Configuration
 
-| Env | Purpose |
-| --- | --- |
-| `DONOTICK_BASE_URL` | Base URL of your Donotick instance (e.g., `http://192.168.50.250:2021`). |
-| `DONOTICK_USERNAME` | Username for Donotick login (preferred auth method). |
-| `DONOTICK_PASSWORD` | Password for Donotick login. |
-| `DONOTICK_TOKEN` | Legacy API token (used if username/password not set). |
-| `PRINTER_IP` | Default Epson printer IP for server-side printing. |
-| `PRINTER_PORT` | Usually 9100 for ESC/POS raw socket. |
-| `DAILY_PRINT_TIME` | Morning auto-print time `HH:MM` (24h), default `08:00`. |
-| `WEEKLY_PRINT_TIME` | Sunday weekly preview time `HH:MM` (24h), default `08:00`. |
-| `WEEKLY_PRINT_DAY` | Day for weekly preview (0=Sun, 1=Mon), default `0` (Sunday). |
-| `TIMEZONE` | Display only; scheduling uses server local time. |
-| `PORT` | HTTP server port (default 3000). |
-| `TRASH_ENABLE` | `true` to enable iCal-based trash reminders. |
-| `TRASH_ICAL_URL` | iCal feed for pickup schedule. |
+All configuration is managed through the web UI under **Settings**. Initial values can be set via environment variables:
 
-## Printing Logic
+| Setting | Description |
+|---------|-------------|
+| Donotick URL | Your Donotick server address |
+| Donotick Username/Password | Login credentials |
+| Printer IP/Port | Thermal printer network address (default port 9100) |
+| Daily Print Time | When to auto-print morning tasks (HH:MM) |
+| Weekly Print Day | Day for weekly summary (0=Sunday) |
+| Trash Calendar URL | iCal feed for waste collection |
+| Google Calendar | OAuth 2.0 connection for private calendars |
 
-### Morning Auto-Print (Daily)
+### Google Calendar Setup
 
-Runs every day at `DAILY_PRINT_TIME`:
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a project and enable **Google Calendar API**
+3. Create OAuth 2.0 credentials (Web application)
+4. Add redirect URI: `http://localhost:3000/api/google/callback`
+5. Enter Client ID and Secret in Settings
+6. Click "Connect with Google"
 
-1. **Fetches today's tasks** from Donotick + trash reminders
-2. **Prints each task individually** with QR code
-3. **Marks tasks as done** in Donotick after printing
-4. **Records printed tasks** in `data/daily-printed.json` (for daily summary button)
-5. **On Monday only**: Also prints the weekly summary
+## Architecture
 
-### Weekly Summary
-
-| Day | What prints automatically | Weekly button shows |
-|-----|---------------------------|---------------------|
-| Monday | Single tasks + Weekly summary (Mon→Sun) | Mon → Sun |
-| Tue–Sat | Single tasks only | Today → Sun |
-| Sunday | Single tasks + Next week preview | Next Mon → Sun |
-
-On Sunday at `WEEKLY_PRINT_TIME`, the system prints a preview of next week's tasks.
-
-### Manual Print Buttons (Dashboard)
-
-- **Print Daily Summary**: Prints a compact list of today's tasks. Includes tasks that were already printed/completed in the morning auto-run (remembered from `daily-printed.json`). Does NOT mark tasks as done again.
-
-- **Print Weekly Summary**: Prints tasks from now until Sunday. On Sunday, shows next week (Monday to Sunday).
-
-- **Print this task**: Prints a single task with QR code (does not mark as done).
-
-### Unified Database
-
-All state is stored in a single file: `data/db.json`
-
-| Section | Purpose |
-| --- | --- |
-| `daily` | Tasks printed in the morning (resets daily). Used so daily summary button can show tasks that were already completed. |
-| `trash.printed` | Tracks which trash reminders have been printed. |
-| `trash.cache` | Cached iCal data (12h TTL). |
-| `trash.created` | Tracks trash tasks created in Donotick. |
-| `logs` | Activity log entries (max 200 entries). |
-
-Old state files are automatically migrated to the unified database on first run.
+```
+printer-hub/
+├── src/                    # Backend (Node.js)
+│   ├── server.js          # HTTP server & API routes
+│   ├── printer.js         # ESC/POS thermal printing
+│   ├── donotick.js        # Donotick API client
+│   ├── googleCalendar.js  # Google Calendar OAuth
+│   ├── trash.js           # Trash calendar integration
+│   ├── scheduler.js       # Automatic print scheduling
+│   ├── db.js              # JSON database
+│   └── config.js          # Configuration management
+├── frontend/              # Frontend (Vue 3 + Vite)
+│   ├── src/
+│   │   ├── views/         # Page components
+│   │   ├── components/    # UI components (shadcn-vue)
+│   │   └── router/        # Vue Router
+│   └── dist/              # Built frontend (served by backend)
+└── data/                  # Runtime data (gitignored)
+    └── db.json            # Database file
+```
 
 ## API Endpoints
 
+### Tasks
 | Endpoint | Method | Description |
-| --- | --- | --- |
-| `/` | GET | Dashboard |
-| `/logs.html` | GET | Activity log page |
-| `/api/todos/today` | GET | Today's tasks (Donotick + trash) |
+|----------|--------|-------------|
+| `/api/todos/today` | GET | Today's tasks |
 | `/api/todos/week` | GET | This week's tasks |
-| `/api/todos/create` | POST | Create a new task |
-| `/api/todos/:id/complete` | POST | Mark task as done |
 | `/api/todos/:id/print` | POST | Print single task |
 | `/api/print/daily` | POST | Print daily summary |
 | `/api/print/weekly` | POST | Print weekly summary |
-| `/api/printer/status` | GET | Check printer reachability |
-| `/api/printer/test` | POST | Print test ticket |
+
+### Shopping List
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/shopping/items` | GET/POST | Manage items |
+| `/api/shopping/list` | GET/POST/DELETE | Current shopping list |
+| `/api/shopping/collections` | GET/POST | Item collections |
+| `/api/shopping/print` | POST | Print shopping list |
+
+### Calendar & Status
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/calendar/week` | GET | Calendar events |
 | `/api/trash/preview` | GET | Upcoming trash pickups |
-| `/api/trash/sync` | POST | Sync trash to Donotick tasks |
-| `/api/status` | GET | Server status + last run info |
-| `/api/logs` | GET | Get activity log entries |
-| `/api/logs/clear` | POST | Clear all log entries |
+| `/api/printer/status` | GET | Printer connectivity |
+| `/api/google/status` | GET | Google Calendar connection |
 
-### Request Bodies
+## Printing
 
-```json
-// POST /api/print/daily, /api/print/weekly, /api/printer/test
-{
-  "printerIp": "192.168.10.30",  // optional, uses config default
-  "printerPort": 9100            // optional
-}
+The system prints to ESC/POS compatible thermal printers via raw TCP socket on port 9100.
 
-// POST /api/todos/create
-{
-  "title": "Task name",
-  "description": "Optional description",
-  "dueDate": "2025-01-15T08:00:00Z",
-  "labels": ["Label1", "Label2"]
-}
-```
+### Print Types
+- **Single Task**: Large title, QR code with task ID
+- **Daily Summary**: Compact list of today's tasks
+- **Weekly Summary**: Tasks grouped by day
+- **Shopping List**: Items with quantities and units
+- **WiFi QR Code**: Scannable WiFi credentials
 
-## Trash Calendar Integration
-
-- Fetches iCal feed from configured URL
-- Ignores Biotonne
-- Creates reminder tasks in Donotick one day before pickup
-- Groups same-day pickups into single task with multiple labels
-- Color-coded labels: Gelb (yellow bin), Schwarz (residual), Grün (paper), Blau (glass)
-
-## Running 24/7
-
-Use a process manager (systemd, pm2, or Docker) to keep the server alive. Auto-print timers are in-process.
-
-```bash
-# Example with pm2
-pm2 start src/server.js --name donotick-printer
-
-# Example systemd service
-[Unit]
-Description=Donotick Printer Bridge
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/path/to/donotick-printer
-ExecStart=/usr/bin/node src/server.js
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
+### Automatic Printing
+- **Daily (configurable time)**: Prints individual task tickets
+- **Monday**: Includes weekly summary
+- **Sunday**: Prints next week preview
 
 ## Development
 
 ```bash
-# Run with auto-reload
+# Backend with auto-reload
 bun run dev
 
-# Lint
-bun run lint
+# Frontend dev server (with hot reload)
+cd frontend && bun run dev
+
+# Build frontend for production
+cd frontend && bun run build
+
+# Type check frontend
+cd frontend && bun run type-check
 ```
 
-## Notes
+## Tech Stack
 
-- ESC/POS raw printing on port 9100. Adjust `src/printer.js` if your printer requires different protocol.
-- Non-ASCII characters are handled, but verify your printer's code page settings.
-- The dashboard auto-loads tasks on page load and shows live status.
+**Backend:**
+- Bun / Node.js
+- Native HTTP server (no framework)
+- ESC/POS printing protocol
+
+**Frontend:**
+- Vue 3 + TypeScript
+- Vite
+- Tailwind CSS
+- shadcn-vue components
+- Lucide icons
+
+## License
+
+MIT
+
+## Contributing
+
+Contributions welcome! Please open an issue first to discuss changes.

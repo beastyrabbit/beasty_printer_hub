@@ -34,13 +34,13 @@ function ensureDir() {
 function getDefaultConfig() {
   return {
     // Donotick connection
-    donotickBaseUrl: 'http://192.168.50.250:2021',
+    donotickBaseUrl: '',
     donotickUsername: '',
     donotickPassword: '',
     donotickToken: '',
     
     // Printer settings
-    printerIp: '192.168.50.100',
+    printerIp: '',
     printerPort: 9100,
     
     // Schedule settings
