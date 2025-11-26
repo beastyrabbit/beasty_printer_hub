@@ -14,16 +14,28 @@ A personal productivity dashboard that connects to [Donotick](https://donotick.c
 
 ## Quick Start with Docker (Recommended)
 
+No need to clone - just create a `docker-compose.yml` and run:
+
+```yaml
+# docker-compose.yml
+services:
+  beasty-printer-hub:
+    image: ghcr.io/beastyrabbit/beasty_printer_hub:latest
+    container_name: beasty-printer-hub
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - TZ=Europe/Berlin
+```
+
 ```bash
-# Clone the repository
-git clone https://github.com/beastyrabbit/beasty_printer_hub.git
-cd beasty_printer_hub
-
-# Create data directory and copy example config
+# Create data directory
 mkdir -p data
-cp data/db.example.json data/db.json
 
-# Build and start
+# Start the container
 docker compose up -d
 
 # View logs
@@ -32,30 +44,22 @@ docker compose logs -f
 
 Open http://localhost:3000 in your browser and configure everything in **Settings**.
 
-## Docker Compose
-
-The `docker-compose.yml` provides a production-ready setup:
-
-```yaml
-services:
-  beasty-printer-hub:
-    build: .
-    container_name: beasty-printer-hub
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./data:/app/data  # Persistent config & state
-    environment:
-      - TZ=Europe/Berlin
-```
-
 ### Volume Mount
 
 The `data/` directory is mounted as a volume and contains:
 - `db.json` - All configuration, shopping lists, logs, and cached data
 
 This file persists across container restarts and updates.
+
+### Building from Source
+
+If you prefer to build locally instead of using the pre-built image:
+
+```bash
+git clone https://github.com/beastyrabbit/beasty_printer_hub.git
+cd beasty_printer_hub
+docker compose -f docker-compose.build.yml up -d
+```
 
 ## Manual Installation
 
