@@ -126,6 +126,43 @@ header .sub {
   50% { opacity: 0.5; }
 }
 
+/* Top Navigation */
+.top-nav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.top-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.top-nav-link:hover {
+  background: var(--bg-inset);
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.top-nav-link .icon {
+  width: 16px;
+  height: 16px;
+}
+
 /* Grid Layout */
 .grid {
   display: grid;
@@ -288,6 +325,35 @@ button:active, .btn:active {
 .btn-outline {
   background: transparent;
   border-color: var(--border);
+}
+
+/* Tool buttons */
+.btn-tool {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-tool:hover {
+  background: var(--bg-card);
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.btn-tool svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
 }
 
 /* Status message */
