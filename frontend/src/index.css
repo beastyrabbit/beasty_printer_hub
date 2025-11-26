@@ -54,3 +54,16 @@ body {
 body {
   animation: gradientShift 20s ease-in-out infinite;
 }
+
+/* Native select styling for dark mode */
+select {
+  color-scheme: dark;
+  background-color: #0a0a0a !important;
+  color: #fafafa !important;
+}
+
+select option {
+  background-color: #141414 !important;
+  color: #fafafa !important;
+  padding: 8px;
+}
