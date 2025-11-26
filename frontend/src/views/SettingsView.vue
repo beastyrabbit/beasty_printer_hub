@@ -18,6 +18,8 @@ const config = ref({
   wifiType: 'WPA',
   wifiHidden: false,
   // Calendar settings
+  trashIcalUrl: '',
+  trashEnable: false,
   googleCalendarUrl: '',
   // AI settings
   ollamaEnabled: false,
@@ -58,6 +60,8 @@ async function loadConfig() {
       wifiPassword: '',
       wifiType: cfg.wifiType || 'WPA',
       wifiHidden: cfg.wifiHidden || false,
+      trashIcalUrl: cfg.trashIcalUrl || '',
+      trashEnable: cfg.trashEnable || false,
       googleCalendarUrl: cfg.googleCalendarUrl || '',
       ollamaEnabled: cfg.ollamaEnabled || false,
       ollamaUrl: cfg.ollamaUrl || 'http://localhost:11434',
@@ -222,19 +226,40 @@ onMounted(loadConfig)
           Kalender Integration
         </CardTitle>
       </CardHeader>
-      <CardContent class="space-y-4">
+      <CardContent class="space-y-6">
         <p class="text-sm text-muted-foreground">
           Kalender-Termine können in die Druckausgaben integriert werden.
         </p>
         
-        <div class="space-y-2">
-          <label class="text-sm font-medium">Google Kalender URL</label>
+        <!-- Trash Calendar -->
+        <div class="space-y-3 p-4 border border-border rounded-lg">
+          <div class="flex items-center justify-between">
+            <label class="text-sm font-medium">Abfall-Kalender</label>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" v-model="config.trashEnable" class="rounded" />
+              <span class="text-sm">Aktiviert</span>
+            </label>
+          </div>
+          <div v-if="config.trashEnable" class="space-y-2">
+            <Input 
+              v-model="config.trashIcalUrl" 
+              placeholder="https://example.com/abfall.ics" 
+            />
+            <p class="text-xs text-muted-foreground">
+              iCal-URL für Müllabfuhr-Termine
+            </p>
+          </div>
+        </div>
+
+        <!-- Family Calendar -->
+        <div class="space-y-3 p-4 border border-border rounded-lg">
+          <label class="text-sm font-medium">Familien-Kalender (Google)</label>
           <Input 
             v-model="config.googleCalendarUrl" 
             placeholder="https://calendar.google.com/calendar/embed?src=..." 
           />
           <p class="text-xs text-muted-foreground">
-            Embed-URL oder iCal-URL des öffentlichen Kalenders
+            Embed-URL oder iCal-URL des öffentlichen Google-Kalenders
           </p>
         </div>
 

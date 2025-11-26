@@ -12,6 +12,19 @@ interface Task {
   labels?: string[]
 }
 
+interface CalendarEvent {
+  summary: string
+  start: string
+  location?: string
+  allDay?: boolean
+}
+
+interface TrashEvent {
+  type: string
+  date: string
+  label: string
+}
+
 interface ConnectionStatus {
   name: string
   icon: any
@@ -22,6 +35,8 @@ interface ConnectionStatus {
 
 const tasks = ref<Task[]>([])
 const weekTasks = ref<Task[]>([])
+const familyEvents = ref<CalendarEvent[]>([])
+const trashEvents = ref<TrashEvent[]>([])
 const loading = ref(false)
 const todayCount = ref(0)
 const weekCount = ref(0)
@@ -61,6 +76,37 @@ async function loadWeekTasks() {
   }
 }
 
+async function loadFamilyCalendar() {
+  try {
+    const res = await fetch('/api/calendar/week')
+    const data = await res.json()
+    familyEvents.value = (data.events || []).map((e: any) => ({
+      summary: e.summary,
+      start: e.start,
+      location: e.location,
+      allDay: e.allDay
+    }))
+  } catch (err) {
+    console.error('Failed to load family calendar:', err)
+  }
+}
+
+async function loadTrashCalendar() {
+  try {
+    const res = await fetch('/api/trash/preview')
+    const data = await res.json()
+    // upcoming is an array of events with type, pickupDate, reminderDate
+    const upcoming = data.upcoming || []
+    trashEvents.value = upcoming.map((event: any) => ({
+      type: event.type,
+      date: event.pickupDate,
+      label: event.type
+    })).sort((a: TrashEvent, b: TrashEvent) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  } catch (err) {
+    console.error('Failed to load trash calendar:', err)
+  }
+}
+
 async function checkAllConnections() {
   // Check printer
   try {
@@ -78,48 +124,45 @@ async function checkAllConnections() {
   }
 
   // Check Trash calendar
-  try {
-    const res = await fetch('/api/trash/preview')
-    const data = await res.json()
-    const trash = connections.value.find(c => c.name === 'Abfall-Kalender')
-    if (trash) {
-      const eventCount = data.events?.length || 0
-      trash.connected = eventCount > 0
-      trash.detail = eventCount > 0 ? `${eventCount} Termine` : 'Keine Termine'
-      trash.loading = false
+  const trash = connections.value.find(c => c.name === 'Abfall-Kalender')
+  if (trash) {
+    try {
+      const configRes = await fetch('/api/config')
+      const configData = await configRes.json()
+      if (configData.config?.trashEnable && configData.config?.trashIcalUrl) {
+        trash.connected = trashEvents.value.length > 0
+        trash.detail = trashEvents.value.length > 0 ? `${trashEvents.value.length} Termine` : 'Keine kommenden'
+      } else {
+        trash.connected = false
+        trash.detail = 'Nicht konfiguriert'
+      }
+    } catch {
+      trash.connected = false
+      trash.detail = 'Fehler'
     }
-  } catch {
-    const trash = connections.value.find(c => c.name === 'Abfall-Kalender')
-    if (trash) { trash.connected = false; trash.detail = 'Fehler'; trash.loading = false }
+    trash.loading = false
   }
 
   // Check Family calendar
-  try {
-    const res = await fetch('/api/calendar/week')
-    const data = await res.json()
-    const family = connections.value.find(c => c.name === 'Familien-Kalender')
-    if (family) {
-      const eventCount = data.events?.length || 0
-      if (eventCount > 0) {
+  const family = connections.value.find(c => c.name === 'Familien-Kalender')
+  if (family) {
+    try {
+      const configRes = await fetch('/api/config')
+      const configData = await configRes.json()
+      if (configData.config?.googleCalendarUrl) {
         family.connected = true
-        family.detail = `${eventCount} Termine diese Woche`
+        family.detail = familyEvents.value.length > 0 
+          ? `${familyEvents.value.length} diese Woche` 
+          : 'Keine diese Woche'
       } else {
-        // Check if calendar is configured
-        const configRes = await fetch('/api/config')
-        const configData = await configRes.json()
-        if (configData.config?.googleCalendarUrl) {
-          family.connected = true
-          family.detail = 'Keine Termine diese Woche'
-        } else {
-          family.connected = false
-          family.detail = 'Nicht konfiguriert'
-        }
+        family.connected = false
+        family.detail = 'Nicht konfiguriert'
       }
-      family.loading = false
+    } catch {
+      family.connected = false
+      family.detail = 'Fehler'
     }
-  } catch {
-    const family = connections.value.find(c => c.name === 'Familien-Kalender')
-    if (family) { family.connected = false; family.detail = 'Fehler'; family.loading = false }
+    family.loading = false
   }
 
   // Check Ollama AI
@@ -179,18 +222,32 @@ async function printWifiQr() {
   }
 }
 
-function refreshAll() {
-  loadTasks()
-  loadWeekTasks()
-  checkAllConnections()
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' })
+}
+
+function formatTime(dateStr: string): string {
+  const date = new Date(dateStr)
+  return date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+}
+
+async function refreshAll() {
+  loading.value = true
+  await Promise.all([
+    loadTasks(),
+    loadWeekTasks(),
+    loadFamilyCalendar(),
+    loadTrashCalendar(),
+  ])
+  await checkAllConnections()
+  loading.value = false
 }
 
 onMounted(() => {
-  loadTasks()
-  loadWeekTasks()
-  checkAllConnections()
+  refreshAll()
   // Auto-check status every 30 seconds
-  statusCheckInterval = window.setInterval(checkAllConnections, 30000)
+  statusCheckInterval = window.setInterval(refreshAll, 30000)
 })
 
 onUnmounted(() => {
@@ -284,7 +341,75 @@ onUnmounted(() => {
       </Card>
     </div>
 
-    <!-- Main Content Grid -->
+    <!-- Calendar Boxes -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Trash Calendar -->
+      <Card>
+        <CardHeader>
+          <CardTitle class="flex items-center gap-2">
+            <Trash2 class="w-5 h-5" />
+            Müllabfuhr
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div v-if="trashEvents.length === 0" class="text-center py-6 text-muted-foreground">
+            Keine kommenden Abholtermine
+          </div>
+          <ul v-else class="space-y-2">
+            <li
+              v-for="event in trashEvents"
+              :key="event.type"
+              class="flex items-center justify-between p-3 rounded-lg bg-secondary/50"
+            >
+              <div class="flex items-center gap-3">
+                <div class="w-3 h-3 rounded-full" :class="{
+                  'bg-gray-600': event.type.toLowerCase().includes('rest') || event.type.toLowerCase().includes('schwarz'),
+                  'bg-yellow-500': event.type.toLowerCase().includes('gelb'),
+                  'bg-blue-500': event.type.toLowerCase().includes('papier') || event.type.toLowerCase().includes('blau'),
+                  'bg-green-600': event.type.toLowerCase().includes('bio') || event.type.toLowerCase().includes('grün'),
+                  'bg-amber-700': event.type.toLowerCase().includes('braun'),
+                }" />
+                <span class="font-medium">{{ event.label }}</span>
+              </div>
+              <span class="text-sm text-muted-foreground">{{ formatDate(event.date) }}</span>
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
+
+      <!-- Family Calendar -->
+      <Card>
+        <CardHeader>
+          <CardTitle class="flex items-center gap-2">
+            <CalendarDays class="w-5 h-5" />
+            Familien-Kalender
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div v-if="familyEvents.length === 0" class="text-center py-6 text-muted-foreground">
+            Keine Termine diese Woche
+          </div>
+          <ul v-else class="space-y-2 max-h-64 overflow-y-auto">
+            <li
+              v-for="(event, idx) in familyEvents"
+              :key="idx"
+              class="flex items-center justify-between p-3 rounded-lg bg-secondary/50"
+            >
+              <div class="flex-1">
+                <div class="font-medium">{{ event.summary }}</div>
+                <div v-if="event.location" class="text-xs text-muted-foreground">{{ event.location }}</div>
+              </div>
+              <div class="text-right text-sm">
+                <div class="text-muted-foreground">{{ formatDate(event.start) }}</div>
+                <div v-if="!event.allDay" class="text-xs">{{ formatTime(event.start) }}</div>
+              </div>
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
+    </div>
+
+    <!-- Tasks Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Today's Tasks -->
       <Card>
