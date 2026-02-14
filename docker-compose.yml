@@ -4,7 +4,7 @@ services:
     container_name: beasty-printer-hub
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3200:3200"
     volumes:
       # Persist database with config and state
       - ./data:/app/data
@@ -14,7 +14,7 @@ services:
     # Optional: network mode host for direct printer access on local network
     # network_mode: host
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/status"]
+      test: ["CMD", "curl", "-f", "http://localhost:3200/api/status"]
       interval: 30s
       timeout: 10s
       retries: 3
