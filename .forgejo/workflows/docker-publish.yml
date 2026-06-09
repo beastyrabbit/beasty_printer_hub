@@ -16,9 +16,10 @@ env:
   REGISTRY: git.heerlab.com
   IMAGE_NAME: beasty/beasty_printer_hub
   INFISICAL_API_URL: ${{ vars.INFISICAL_API_URL }}
-  INFISICAL_PROJECT_ID: ${{ vars.INFISICAL_PROJECT_ID }}
   INFISICAL_ENV: ${{ vars.INFISICAL_ENV }}
   INFISICAL_MACHINE_IDENTITY_ID: ${{ vars.INFISICAL_MACHINE_IDENTITY_ID }}
+  FJ_CI_INFISICAL_PROJECT_ID: ${{ vars.FJ_CI_INFISICAL_PROJECT_ID }}
+  FJ_REGISTRY_SECRET_PATH: ${{ vars.FJ_REGISTRY_SECRET_PATH }}
 
 jobs:
   build-and-push:
@@ -59,9 +60,10 @@ jobs:
         run: |
           set -euo pipefail
           : "${INFISICAL_API_URL:?Missing INFISICAL_API_URL Forgejo variable}"
-          : "${INFISICAL_PROJECT_ID:?Missing INFISICAL_PROJECT_ID Forgejo variable}"
           : "${INFISICAL_ENV:?Missing INFISICAL_ENV Forgejo variable}"
           : "${INFISICAL_MACHINE_IDENTITY_ID:?Missing INFISICAL_MACHINE_IDENTITY_ID Forgejo variable}"
+          : "${FJ_CI_INFISICAL_PROJECT_ID:?Missing FJ_CI_INFISICAL_PROJECT_ID Forgejo variable}"
+          : "${FJ_REGISTRY_SECRET_PATH:?Missing FJ_REGISTRY_SECRET_PATH Forgejo variable}"
           : "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:?Missing Forgejo OIDC request token}"
           : "${ACTIONS_ID_TOKEN_REQUEST_URL:?Missing Forgejo OIDC request URL}"
 
@@ -84,9 +86,9 @@ jobs:
           package_token="$(infisical secrets get FORGEJO_PACKAGE_TOKEN \
             --domain "$INFISICAL_API_URL" \
             --token "$infisical_token" \
-            --projectId "$INFISICAL_PROJECT_ID" \
+            --projectId "$FJ_CI_INFISICAL_PROJECT_ID" \
             --env "$INFISICAL_ENV" \
-            --path /ci \
+            --path "$FJ_REGISTRY_SECRET_PATH" \
             --plain \
             --silent)"
           : "${package_token:?Missing FORGEJO_PACKAGE_TOKEN in Infisical}"
