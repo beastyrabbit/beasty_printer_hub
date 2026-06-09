@@ -88,6 +88,7 @@ async function loadConfig() {
       ollamaModel: cfg.ollamaModel || 'llama3.2',
       aiDailySummary: cfg.aiDailySummary || false,
       aiWeeklySummary: cfg.aiWeeklySummary || false,
+      devMode: cfg.devMode || false,
     }
     passwordSet.value = cfg.donotickPassword === '********'
     wifiPasswordSet.value = cfg.wifiPassword === '********'
