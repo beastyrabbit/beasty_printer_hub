@@ -20,7 +20,7 @@ No need to clone - just create a `docker-compose.yml` and run:
 # docker-compose.yml
 services:
   beasty-printer-hub:
-    image: ghcr.io/beastyrabbit/beasty_printer_hub:latest
+    image: git.heerlab.com/beasty/beasty_printer_hub:latest
     container_name: beasty-printer-hub
     restart: unless-stopped
     ports:
@@ -56,7 +56,7 @@ This file persists across container restarts and updates.
 If you prefer to build locally instead of using the pre-built image:
 
 ```bash
-git clone https://github.com/beastyrabbit/beasty_printer_hub.git
+git clone git@git.heerlab.com:beasty/beasty_printer_hub.git
 cd beasty_printer_hub
 docker compose -f docker-compose.build.yml up -d
 ```
@@ -73,7 +73,7 @@ docker compose -f docker-compose.build.yml up -d
 
 ```bash
 # Clone the repository
-git clone https://github.com/beastyrabbit/beasty_printer_hub.git
+git clone git@git.heerlab.com:beasty/beasty_printer_hub.git
 cd beasty_printer_hub
 
 # Install dependencies

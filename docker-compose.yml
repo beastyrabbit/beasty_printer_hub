@@ -1,6 +1,6 @@
 services:
   beasty-printer-hub:
-    image: ghcr.io/beastyrabbit/beasty_printer_hub:latest
+    image: git.heerlab.com/beasty/beasty_printer_hub:latest
     container_name: beasty-printer-hub
     restart: unless-stopped
     ports:
