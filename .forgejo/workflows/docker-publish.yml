@@ -15,11 +15,6 @@ enable-openid-connect: true
 env:
   REGISTRY: git.heerlab.com
   IMAGE_NAME: beasty/beasty_printer_hub
-  INFISICAL_API_URL: ${{ vars.INFISICAL_API_URL }}
-  INFISICAL_ENV: ${{ vars.INFISICAL_ENV }}
-  INFISICAL_MACHINE_IDENTITY_ID: ${{ vars.INFISICAL_MACHINE_IDENTITY_ID }}
-  FJ_CI_INFISICAL_PROJECT_ID: ${{ vars.FJ_CI_INFISICAL_PROJECT_ID }}
-  FJ_REGISTRY_SECRET_PATH: ${{ vars.FJ_REGISTRY_SECRET_PATH }}
 
 jobs:
   build-and-push:
@@ -42,13 +37,6 @@ jobs:
           apt-get install -y --no-install-recommends ca-certificates curl docker.io
           docker --version
 
-      - name: Install Infisical CLI
-        if: github.event_name != 'pull_request'
-        run: |
-          set -euo pipefail
-          npm install --global @infisical/cli@0.43.91
-          infisical --version
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
         with:
@@ -57,43 +45,7 @@ jobs:
 
       - name: Log in to Forgejo Container Registry with Infisical
         if: github.event_name != 'pull_request'
-        run: |
-          set -euo pipefail
-          : "${INFISICAL_API_URL:?Missing INFISICAL_API_URL Forgejo variable}"
-          : "${INFISICAL_ENV:?Missing INFISICAL_ENV Forgejo variable}"
-          : "${INFISICAL_MACHINE_IDENTITY_ID:?Missing INFISICAL_MACHINE_IDENTITY_ID Forgejo variable}"
-          : "${FJ_CI_INFISICAL_PROJECT_ID:?Missing FJ_CI_INFISICAL_PROJECT_ID Forgejo variable}"
-          : "${FJ_REGISTRY_SECRET_PATH:?Missing FJ_REGISTRY_SECRET_PATH Forgejo variable}"
-          : "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:?Missing Forgejo OIDC request token}"
-          : "${ACTIONS_ID_TOKEN_REQUEST_URL:?Missing Forgejo OIDC request URL}"
-
-          oidc_response="$(curl -fsS \
-            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
-            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=https://git.heerlab.com/beasty")"
-          forgejo_jwt="$(node -e 'const fs = require("fs"); const body = JSON.parse(fs.readFileSync(0, "utf8")); process.stdout.write(body.value || "");' <<< "$oidc_response")"
-          : "${forgejo_jwt:?Forgejo OIDC response did not include a token}"
-
-          infisical_token="$(infisical login \
-            --method oidc-auth \
-            --machine-identity-id "$INFISICAL_MACHINE_IDENTITY_ID" \
-            --jwt "$forgejo_jwt" \
-            --domain "$INFISICAL_API_URL" \
-            --plain \
-            --silent)"
-          : "${infisical_token:?Infisical OIDC login returned an empty token}"
-          echo "::add-mask::$infisical_token"
-
-          package_token="$(infisical secrets get FORGEJO_PACKAGE_TOKEN \
-            --domain "$INFISICAL_API_URL" \
-            --token "$infisical_token" \
-            --projectId "$FJ_CI_INFISICAL_PROJECT_ID" \
-            --env "$INFISICAL_ENV" \
-            --path "$FJ_REGISTRY_SECRET_PATH" \
-            --plain \
-            --silent)"
-          : "${package_token:?Missing FORGEJO_PACKAGE_TOKEN in Infisical}"
-          echo "::add-mask::$package_token"
-          printf '%s' "$package_token" | docker login "$REGISTRY" --username beasty --password-stdin
+        uses: https://git.heerlab.com/beasty/forgejo-ci/actions/registry-login@main
 
       - name: Extract metadata (tags, labels)
         id: meta
