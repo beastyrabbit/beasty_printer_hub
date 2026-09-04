@@ -54,7 +54,7 @@ function getEnvConfig() {
     weeklyPrintDay: Number(readEnv('WEEKLY_PRINT_DAY', 0)),
     trashIcalUrl: readEnv('TRASH_ICAL_URL', ''),
     trashEnable: readEnv('TRASH_ENABLE', 'true') === 'true',
-    serverPort: Number(readEnv('PORT', 3000)),
+    serverPort: Number(readEnv('PORT', 3200)),
     logLevel: readEnv('LOG_LEVEL', 'info')
   };
 }

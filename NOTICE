@@ -1,0 +1,50 @@
+NOTICE
+
+Beasty Printer Hub
+Copyright (c) 2024 beastyrabbit
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+================================================================================
+THIRD-PARTY SOFTWARE NOTICES
+================================================================================
+
+This software includes or depends on the following third-party components:
+
+--------------------------------------------------------------------------------
+Epson ePOS SDK for JavaScript
+--------------------------------------------------------------------------------
+
+File: public/lib/epos-2.27.0.js
+
+Copyright (C) 2016-2025 Seiko Epson Corporation. All rights reserved.
+
+This file is part of the Epson ePOS SDK for JavaScript (Version 2.27.0) and is
+included for convenience to enable thermal printer communication. This SDK is
+proprietary software provided by Seiko Epson Corporation.
+
+The Epson ePOS SDK is subject to Seiko Epson Corporation's End User License
+Agreement (EULA). Users should review the EULA terms available from Epson.
+
+The full SDK with documentation can be downloaded from:
+https://download.ebz.epson.net/dsc/search/01/search/
+
+Note: The full SDK directory (ePOS_SDK_JavaScript_v2.27.0g/) is not included
+in this repository and is excluded via .gitignore.
+
+--------------------------------------------------------------------------------
+Open Source Dependencies
+--------------------------------------------------------------------------------
+
+This project uses various open source libraries. See package.json for the
+complete list of dependencies and their respective licenses.
+
+Key dependencies include:
+- Vue.js (MIT License)
+- Vite (MIT License)
+- Tailwind CSS (MIT License)
+- ical.js (MPL 2.0)
+- sharp (Apache 2.0)
+
+For a complete list of dependencies and their licenses, run:
+  npm ls --all
