@@ -6,7 +6,7 @@
   "type": "commonjs",
   "scripts": {
     "start": "bun run src/server.js",
-    "dev": "bun --watch src/server.js",
+    "dev": "bun run build && bun --watch src/server.js",
     "build": "cd frontend && bun run build",
     "docker:build": "docker compose build",
     "docker:up": "docker compose up -d",
