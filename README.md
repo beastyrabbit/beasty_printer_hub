@@ -1,4 +1,5 @@
-# Beasty Printer Hub 🖨️
+# Beasty Printer Hub
+
 
 A personal productivity dashboard that connects to [Donotick](https://donotick.com) task manager, Google Calendar, trash collection schedules, and an ESC/POS thermal printer. Built with Node.js backend and Vue 3 frontend.
 
