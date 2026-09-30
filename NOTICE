@@ -1,0 +1,73 @@
+NOTICE
+
+Beasty Printer Hub
+Copyright (c) 2025 beastyrabbit
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+================================================================================
+THIRD-PARTY SOFTWARE NOTICES
+================================================================================
+
+This repository includes the following third-party components. Their original
+licenses apply to those files, not the project's MIT License.
+
+--------------------------------------------------------------------------------
+JSHint 2.13.6
+--------------------------------------------------------------------------------
+
+File: tools/jshint.js (used by scripts/lint.js; not part of the Docker image)
+
+JSHint, by JSHint Community. Licensed under the MIT License.
+JSHint is a derivative work of JSLint, Copyright (c) 2002 Douglas Crockford.
+https://github.com/jshint/jshint
+
+This bundled (browserify) build also contains:
+- Lodash 4.17.21 (MIT), Copyright OpenJS Foundation and other contributors
+  (based on Underscore.js, Copyright Jeremy Ashkenas, DocumentCloud and
+  Investigative Reporters & Editors)
+- Node.js core modules events and util (MIT), Copyright Joyent, Inc. and
+  other Node contributors
+- assert module from narwhal.js (MIT), Copyright (c) 2009 Thomas Robinson
+- inherits (ISC), Copyright (c) Isaac Z. Schlueter
+  https://github.com/isaacs/inherits
+- console-browserify (MIT), by Raynos
+  https://github.com/browserify/console-browserify
+- date-now (MIT), by Raynos - https://github.com/Raynos/date-now
+- process browser shim (MIT), Copyright (c) Roman Shtylman
+  https://github.com/shtylman/node-process
+
+License texts for JSHint, JSLint, Lodash, the Node.js modules, and assert are
+in the file headers of tools/jshint.js; the other modules' license texts are
+in their upstream repositories listed above.
+
+--------------------------------------------------------------------------------
+Font Awesome Free 7.1.0 icons
+--------------------------------------------------------------------------------
+
+Files: public/icons/*.svg, img/*.svg, img/bitmaps/*.png (PNG renderings of the
+same SVG icons)
+
+Font Awesome Free by @fontawesome - https://fontawesome.com
+Copyright 2025 Fonticons, Inc.
+Icons are licensed under CC BY 4.0: https://fontawesome.com/license/free
+
+--------------------------------------------------------------------------------
+Package dependencies
+--------------------------------------------------------------------------------
+
+Dependencies declared in package.json and frontend/package.json are installed
+by the package manager and are not vendored in this repository. Each package is
+covered by its own license, found in its package metadata. Notable licenses
+include:
+- Vue.js, Vite, Tailwind CSS (MIT License)
+- ical.js (Mozilla Public License 2.0)
+- sharp (Apache License 2.0)
+
+--------------------------------------------------------------------------------
+Not included
+--------------------------------------------------------------------------------
+
+The Epson ePOS SDK for JavaScript is proprietary software of Seiko Epson
+Corporation and is not included or required. Printing uses raw ESC/POS over
+TCP (src/printer.js).

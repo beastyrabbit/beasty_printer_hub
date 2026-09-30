@@ -6,7 +6,6 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const includeDirs = ['src', 'public', 'scripts'];
 const ignore = new Set([
-  'public/lib/epos-2.27.0.js',
   'tools/jshint.js'
 ]);
 
