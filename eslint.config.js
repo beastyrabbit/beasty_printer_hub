@@ -2,7 +2,7 @@ const globals = require('globals');
 
 module.exports = [
   {
-    ignores: ['public/lib/**', 'tools/**', 'node_modules/**', 'data/**']
+    ignores: ['tools/**', 'node_modules/**', 'data/**']
   },
   {
     files: ['src/**/*.js', 'scripts/**/*.js'],
@@ -25,8 +25,7 @@ module.exports = [
       ecmaVersion: 2021,
       sourceType: 'script',
       globals: {
-        ...globals.browser,
-        epson: 'readonly'
+        ...globals.browser
       }
     },
     rules: {

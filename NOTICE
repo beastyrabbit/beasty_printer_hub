@@ -1,7 +1,7 @@
 NOTICE
 
 Beasty Printer Hub
-Copyright (c) 2024 beastyrabbit
+Copyright (c) 2025 beastyrabbit
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
@@ -9,42 +9,65 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 THIRD-PARTY SOFTWARE NOTICES
 ================================================================================
 
-This software includes or depends on the following third-party components:
+This repository includes the following third-party components. Their original
+licenses apply to those files, not the project's MIT License.
 
 --------------------------------------------------------------------------------
-Epson ePOS SDK for JavaScript
+JSHint 2.13.6
 --------------------------------------------------------------------------------
 
-File: public/lib/epos-2.27.0.js
+File: tools/jshint.js (used by scripts/lint.js; not part of the Docker image)
 
-Copyright (C) 2016-2025 Seiko Epson Corporation. All rights reserved.
+JSHint, by JSHint Community. Licensed under the MIT License.
+JSHint is a derivative work of JSLint, Copyright (c) 2002 Douglas Crockford.
+https://github.com/jshint/jshint
 
-This file is part of the Epson ePOS SDK for JavaScript (Version 2.27.0) and is
-included for convenience to enable thermal printer communication. This SDK is
-proprietary software provided by Seiko Epson Corporation.
+This bundled (browserify) build also contains:
+- Lodash 4.17.21 (MIT), Copyright OpenJS Foundation and other contributors
+  (based on Underscore.js, Copyright Jeremy Ashkenas, DocumentCloud and
+  Investigative Reporters & Editors)
+- Node.js core modules events and util (MIT), Copyright Joyent, Inc. and
+  other Node contributors
+- assert module from narwhal.js (MIT), Copyright (c) 2009 Thomas Robinson
+- inherits (ISC), Copyright (c) Isaac Z. Schlueter
+  https://github.com/isaacs/inherits
+- console-browserify (MIT), by Raynos
+  https://github.com/browserify/console-browserify
+- date-now (MIT), by Raynos - https://github.com/Raynos/date-now
+- process browser shim (MIT), Copyright (c) Roman Shtylman
+  https://github.com/shtylman/node-process
 
-The Epson ePOS SDK is subject to Seiko Epson Corporation's End User License
-Agreement (EULA). Users should review the EULA terms available from Epson.
-
-The full SDK with documentation can be downloaded from:
-https://download.ebz.epson.net/dsc/search/01/search/
-
-Note: The full SDK directory (ePOS_SDK_JavaScript_v2.27.0g/) is not included
-in this repository and is excluded via .gitignore.
+License texts for JSHint, JSLint, Lodash, the Node.js modules, and assert are
+in the file headers of tools/jshint.js; the other modules' license texts are
+in their upstream repositories listed above.
 
 --------------------------------------------------------------------------------
-Open Source Dependencies
+Font Awesome Free 7.1.0 icons
 --------------------------------------------------------------------------------
 
-This project uses various open source libraries. See package.json for the
-complete list of dependencies and their respective licenses.
+Files: public/icons/*.svg, img/*.svg, img/bitmaps/*.png (PNG renderings of the
+same SVG icons)
 
-Key dependencies include:
-- Vue.js (MIT License)
-- Vite (MIT License)
-- Tailwind CSS (MIT License)
-- ical.js (MPL 2.0)
-- sharp (Apache 2.0)
+Font Awesome Free by @fontawesome - https://fontawesome.com
+Copyright 2025 Fonticons, Inc.
+Icons are licensed under CC BY 4.0: https://fontawesome.com/license/free
 
-For a complete list of dependencies and their licenses, run:
-  npm ls --all
+--------------------------------------------------------------------------------
+Package dependencies
+--------------------------------------------------------------------------------
+
+Dependencies declared in package.json and frontend/package.json are installed
+by the package manager and are not vendored in this repository. Each package is
+covered by its own license, found in its package metadata. Notable licenses
+include:
+- Vue.js, Vite, Tailwind CSS (MIT License)
+- ical.js (Mozilla Public License 2.0)
+- sharp (Apache License 2.0)
+
+--------------------------------------------------------------------------------
+Not included
+--------------------------------------------------------------------------------
+
+The Epson ePOS SDK for JavaScript is proprietary software of Seiko Epson
+Corporation and is not included or required. Printing uses raw ESC/POS over
+TCP (src/printer.js).

@@ -6,7 +6,7 @@ Thank you for your interest in contributing to Beasty Printer Hub!
 
 1. Fork the repository
 2. Clone your fork locally
-3. Install dependencies: `bun install` (or `npm install`)
+3. Install dependencies: `bun install && (cd frontend && bun install)`
 4. Create a branch for your changes: `git checkout -b feature/your-feature-name`
 
 ## Development
@@ -14,11 +14,12 @@ Thank you for your interest in contributing to Beasty Printer Hub!
 ### Running locally
 
 ```bash
-# Install dependencies
-bun install
-
-# Start the development server
+# Build the frontend, then start the backend with auto-reload
+bun run build
 bun run dev
+
+# Optional: frontend dev server with hot reload (proxies /api to port 3000)
+cd frontend && bun run dev
 ```
 
 ### Building
@@ -27,8 +28,8 @@ bun run dev
 # Build the frontend
 bun run build
 
-# Run with Docker
-docker compose up
+# Build and run the Docker image from source
+docker compose -f docker-compose.build.yml up -d
 ```
 
 ## Pull Requests
